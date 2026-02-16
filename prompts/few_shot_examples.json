@@ -1,0 +1,75 @@
+[
+  {
+    "user": "Create a simple order processing workflow",
+    "assistant": {
+      "process_name": "Order Processing",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Order Received" },
+        { "id": "validate_order", "type": "serviceTask", "name": "Validate Order" },
+        { "id": "process_payment", "type": "serviceTask", "name": "Process Payment" },
+        { "id": "ship_order", "type": "userTask", "name": "Ship Order" },
+        { "id": "send_confirmation", "type": "serviceTask", "name": "Send Confirmation" },
+        { "id": "end_1", "type": "endEvent", "name": "Order Complete" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "validate_order" },
+        { "id": "flow_2", "from": "validate_order", "to": "process_payment" },
+        { "id": "flow_3", "from": "process_payment", "to": "ship_order" },
+        { "id": "flow_4", "from": "ship_order", "to": "send_confirmation" },
+        { "id": "flow_5", "from": "send_confirmation", "to": "end_1" }
+      ]
+    }
+  },
+  {
+    "user": "Create a loan approval process with approval/rejection decision",
+    "assistant": {
+      "process_name": "Loan Approval",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Application Received" },
+        { "id": "review_application", "type": "userTask", "name": "Review Application" },
+        { "id": "check_credit", "type": "serviceTask", "name": "Check Credit Score" },
+        { "id": "decision_1", "type": "exclusiveGateway", "name": "Approved?" },
+        { "id": "approve_loan", "type": "userTask", "name": "Approve Loan" },
+        { "id": "reject_loan", "type": "userTask", "name": "Reject Application" },
+        { "id": "notify_customer", "type": "serviceTask", "name": "Notify Customer" },
+        { "id": "end_1", "type": "endEvent", "name": "Process Complete" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "review_application" },
+        { "id": "flow_2", "from": "review_application", "to": "check_credit" },
+        { "id": "flow_3", "from": "check_credit", "to": "decision_1" },
+        { "id": "flow_4", "from": "decision_1", "to": "approve_loan", "name": "Yes" },
+        { "id": "flow_5", "from": "decision_1", "to": "reject_loan", "name": "No" },
+        { "id": "flow_6", "from": "approve_loan", "to": "notify_customer" },
+        { "id": "flow_7", "from": "reject_loan", "to": "notify_customer" },
+        { "id": "flow_8", "from": "notify_customer", "to": "end_1" }
+      ]
+    }
+  },
+  {
+    "user": "Create an employee onboarding process where IT setup and HR orientation happen in parallel",
+    "assistant": {
+      "process_name": "Employee Onboarding",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "New Hire Starts" },
+        { "id": "create_account", "type": "serviceTask", "name": "Create Employee Account" },
+        { "id": "parallel_fork", "type": "parallelGateway", "name": "Start Parallel Tasks" },
+        { "id": "it_setup", "type": "userTask", "name": "IT Equipment Setup" },
+        { "id": "hr_orientation", "type": "userTask", "name": "HR Orientation" },
+        { "id": "parallel_join", "type": "parallelGateway", "name": "All Tasks Complete" },
+        { "id": "welcome_meeting", "type": "userTask", "name": "Welcome Meeting" },
+        { "id": "end_1", "type": "endEvent", "name": "Onboarding Complete" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "create_account" },
+        { "id": "flow_2", "from": "create_account", "to": "parallel_fork" },
+        { "id": "flow_3", "from": "parallel_fork", "to": "it_setup" },
+        { "id": "flow_4", "from": "parallel_fork", "to": "hr_orientation" },
+        { "id": "flow_5", "from": "it_setup", "to": "parallel_join" },
+        { "id": "flow_6", "from": "hr_orientation", "to": "parallel_join" },
+        { "id": "flow_7", "from": "parallel_join", "to": "welcome_meeting" },
+        { "id": "flow_8", "from": "welcome_meeting", "to": "end_1" }
+      ]
+    }
+  }
+]
