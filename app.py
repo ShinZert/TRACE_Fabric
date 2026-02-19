@@ -1,5 +1,5 @@
 """
-BPMN Chatbot - Flask Application
+BPMN ProcessPilot - Flask Application
 Converts text descriptions and images into BPMN 2.0 workflow diagrams.
 """
 

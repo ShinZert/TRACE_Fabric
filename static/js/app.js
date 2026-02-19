@@ -1,4 +1,4 @@
-// BPMN Chatbot - Frontend Application
+// BPMN ProcessPilot - Frontend Application
 
 (function () {
   "use strict";
@@ -23,6 +23,7 @@
   const redoBtn = document.getElementById("redoBtn");
   const syncBtn = document.getElementById("syncBtn");
   const syncIndicator = document.getElementById("syncIndicator");
+  const newSessionBtn = document.getElementById("newSessionBtn");
 
   // State
   let currentXml = null;
@@ -426,6 +427,47 @@
     updateToolbarState();
   }
 
+  // Reset session — clear chat, diagram, and backend state
+  async function resetSession() {
+    if (isProcessing) return;
+
+    try {
+      await fetch("/api/reset", { method: "POST" });
+    } catch (err) {
+      // Continue with UI reset even if backend call fails
+    }
+
+    // Clear frontend state
+    currentXml = null;
+    pendingImageBase64 = null;
+    confirmationImageBase64 = null;
+    isDirty = false;
+    baselineStackIndex = -1;
+
+    // Clear chat messages and restore welcome message
+    chatMessages.innerHTML = "";
+    addMessage(
+      "assistant",
+      "Hi! I can help you create BPMN workflow diagrams. Describe a process in text or upload a flowchart image, and I\u2019ll generate a BPMN diagram for you. You can also ask me to modify existing diagrams."
+    );
+
+    // Reset diagram panel
+    diagramTitle.textContent = "No diagram yet";
+    emptyState.style.display = "";
+    if (viewer) {
+      viewer.destroy();
+      viewer = null;
+    }
+    initModeler();
+
+    // Reset input
+    messageInput.value = "";
+    messageInput.style.height = "auto";
+    messageInput.placeholder = "Describe a workflow or ask to modify...";
+    clearImagePreview();
+    updateToolbarState();
+  }
+
   // Handle image file selection
   function handleImageFile(file) {
     if (!file || !file.type.startsWith("image/")) return;
@@ -523,6 +565,7 @@
   });
 
   syncBtn.addEventListener("click", syncDiagram);
+  newSessionBtn.addEventListener("click", resetSession);
 
   // Toolbar buttons — Zoom
   zoomInBtn.addEventListener("click", function () {

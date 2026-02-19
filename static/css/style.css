@@ -45,6 +45,33 @@ body {
   height: 20px;
 }
 
+.btn-new-session {
+  margin-left: auto;
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.75rem;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-new-session svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-new-session:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;

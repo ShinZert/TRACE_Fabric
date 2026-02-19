@@ -105,7 +105,7 @@ def json_to_bpmn_xml(bpmn_json):
     definitions.set("id", "Definitions_1")
     definitions.set(f"xmlns:xsi", NS["xsi"])
     definitions.set("targetNamespace", "http://bpmn.io/schema/bpmn")
-    definitions.set("exporter", "BPMN Chatbot")
+    definitions.set("exporter", "BPMN ProcessPilot")
     definitions.set("exporterVersion", "1.0")
 
     # Process
