@@ -23,6 +23,7 @@
   const redoBtn = document.getElementById("redoBtn");
   const syncBtn = document.getElementById("syncBtn");
   const syncIndicator = document.getElementById("syncIndicator");
+  const exportPngBtn = document.getElementById("exportPngBtn");
   const newSessionBtn = document.getElementById("newSessionBtn");
 
   // State
@@ -607,6 +608,71 @@
     } catch (err) {
       console.error("Export error:", err);
       alert("Failed to export diagram.");
+    }
+  });
+
+  // Export PNG — render SVG to canvas, then download as PNG
+  exportPngBtn.addEventListener("click", async function () {
+    if (!viewer || !currentXml) {
+      alert("No diagram to export. Generate a diagram first.");
+      return;
+    }
+    try {
+      const result = await viewer.saveSVG();
+      const svgStr = result.svg;
+
+      // Parse SVG to read its intrinsic dimensions
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgStr, "image/svg+xml");
+      const svgEl = svgDoc.documentElement;
+
+      const viewBox = svgEl.getAttribute("viewBox");
+      if (!viewBox) throw new Error("SVG has no viewBox");
+      const parts = viewBox.split(/[\s,]+/).map(Number);
+      const svgWidth = parts[2];
+      const svgHeight = parts[3];
+
+      // Scale up for crisp output (2x)
+      const scale = 2;
+      const canvasWidth = svgWidth * scale;
+      const canvasHeight = svgHeight * scale;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      const ctx = canvas.getContext("2d");
+
+      // White background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      const img = new Image();
+      const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      img.onload = function () {
+        ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+        URL.revokeObjectURL(svgUrl);
+
+        canvas.toBlob(function (pngBlob) {
+          const pngUrl = URL.createObjectURL(pngBlob);
+          const a = document.createElement("a");
+          a.href = pngUrl;
+          a.download = (diagramTitle.textContent || "diagram") + ".png";
+          a.click();
+          URL.revokeObjectURL(pngUrl);
+        }, "image/png");
+      };
+
+      img.onerror = function () {
+        URL.revokeObjectURL(svgUrl);
+        alert("Failed to render diagram as PNG.");
+      };
+
+      img.src = svgUrl;
+    } catch (err) {
+      console.error("PNG export error:", err);
+      alert("Failed to export diagram as PNG.");
     }
   });
 
