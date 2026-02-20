@@ -61,6 +61,11 @@ def chat():
         summary_text = pending["summary"]
         session["pending_confirmation"] = None
 
+        # If user edited the summary inline, use the edited text instead
+        edited_summary = data.get("edited_summary")
+        if edited_summary and isinstance(edited_summary, str):
+            original_message = edited_summary.strip()
+
         result = generate_bpmn(
             user_message=original_message,
             conversation_history=conversation,
