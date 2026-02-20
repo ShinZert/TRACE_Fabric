@@ -170,7 +170,7 @@ def _build_summary_messages(user_message, image_base64=None):
             "type": "image_url",
             "image_url": {
                 "url": f"data:image/png;base64,{image_base64}",
-                "detail": "high"
+                "detail": "low"
             }
         })
         messages.append({"role": "user", "content": content})
@@ -194,13 +194,24 @@ def generate_summary(user_message, image_base64=None):
     messages = _build_summary_messages(user_message, image_base64)
 
     try:
-        response = client.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=messages,
-            max_completion_tokens=1024
-        )
+        params = {
+            "model": OPENAI_MODEL,
+            "messages": messages,
+        }
+        if not image_base64:
+            params["max_completion_tokens"] = 1024
+        response = client.chat.completions.create(**params)
 
-        summary = response.choices[0].message.content.strip()
+        message = response.choices[0].message
+        finish_reason = response.choices[0].finish_reason
+        raw_content = message.content
+        refusal = getattr(message, "refusal", None)
+
+        summary = raw_content.strip() if raw_content else ""
+        if not summary:
+            diag = f"finish_reason={finish_reason}, refusal={refusal}, content={raw_content!r}"
+            print(f"[DEBUG] Empty summary response: {diag}")
+            return {"summary": "", "error": f"LLM returned an empty summary ({diag})."}
         return {"summary": summary, "error": None}
 
     except Exception as e:
