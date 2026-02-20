@@ -79,8 +79,16 @@ def _build_messages(conversation_history, user_message, current_json=None, image
 
     if image_base64:
         # Vision API: send image with text
+        if full_message:
+            text_content = (
+                "The user provided both a text description and an image. "
+                "Use both sources to generate the BPMN process.\n\n"
+                f"Text description: {full_message}"
+            )
+        else:
+            text_content = "Convert this flowchart/diagram into a BPMN process."
         content = [
-            {"type": "text", "text": full_message or "Convert this flowchart/diagram into a BPMN process."}
+            {"type": "text", "text": text_content}
         ]
         content.append({
             "type": "image_url",
@@ -147,8 +155,16 @@ def _build_summary_messages(user_message, image_base64=None):
     messages = [{"role": "system", "content": SUMMARY_PROMPT}]
 
     if image_base64:
+        if user_message:
+            text_content = (
+                "The user provided both a text description and an image of a process. "
+                "Analyze both sources and combine them into a single summary.\n\n"
+                f"Text description: {user_message}"
+            )
+        else:
+            text_content = "Summarize the process shown in this flowchart/diagram."
         content = [
-            {"type": "text", "text": user_message or "Summarize the process shown in this flowchart/diagram."}
+            {"type": "text", "text": text_content}
         ]
         content.append({
             "type": "image_url",
