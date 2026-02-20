@@ -504,3 +504,26 @@ body {
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* Editable summary content */
+.summary-content {
+  outline: none;
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  white-space: pre-wrap;
+  transition: box-shadow 0.2s ease;
+}
+
+.summary-content[contenteditable="true"]:hover {
+  box-shadow: 0 0 0 1.5px rgba(217, 119, 87, 0.2);
+}
+
+.summary-content[contenteditable="true"]:focus {
+  box-shadow: 0 0 0 1.5px rgba(217, 119, 87, 0.4);
+}
+
+.summary-content.editing {
+  background: #fff;
+  box-shadow: 0 0 0 1.5px rgba(217, 119, 87, 0.35);
+}

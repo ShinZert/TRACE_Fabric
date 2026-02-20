@@ -152,65 +152,19 @@
     });
   }
 
-  // Add a summary message with Confirm/Revise buttons
+  // Add a summary message with inline-editable content and Confirm/Revise buttons
   function addSummaryMessage(summaryText) {
     const div = document.createElement("div");
     div.className = "message assistant";
 
-    // Parse summary into intro lines and numbered steps
-    const lines = summaryText.split("\n").filter(function (l) { return l.trim(); });
-    const introLines = [];
-    const steps = [];
-    const noteLines = [];
-    let inSteps = false;
+    var originalText = summaryText;
 
-    lines.forEach(function (line) {
-      var trimmed = line.trim();
-      var match = trimmed.match(/^\d+[\.\)]\s*(.*)/);
-      if (match) {
-        inSteps = true;
-        steps.push(match[1]);
-      } else if (!inSteps) {
-        introLines.push(trimmed);
-      } else {
-        noteLines.push(trimmed);
-      }
-    });
-
-    // Render intro paragraph(s)
-    if (introLines.length > 0) {
-      var intro = document.createElement("p");
-      intro.className = "summary-intro";
-      intro.textContent = introLines.join(" ");
-      div.appendChild(intro);
-    }
-
-    // Render numbered steps as <ol>
-    if (steps.length > 0) {
-      var ol = document.createElement("ol");
-      ol.className = "summary-steps";
-      steps.forEach(function (step) {
-        var li = document.createElement("li");
-        li.textContent = step;
-        ol.appendChild(li);
-      });
-      div.appendChild(ol);
-    }
-
-    // Render trailing notes (e.g. assumptions)
-    if (noteLines.length > 0) {
-      var note = document.createElement("p");
-      note.className = "summary-note";
-      note.textContent = noteLines.join(" ");
-      div.appendChild(note);
-    }
-
-    // Fallback — if parsing found nothing, show raw text
-    if (introLines.length === 0 && steps.length === 0 && noteLines.length === 0) {
-      var span = document.createElement("span");
-      span.textContent = summaryText;
-      div.appendChild(span);
-    }
+    // Editable content area
+    var content = document.createElement("div");
+    content.className = "summary-content";
+    content.contentEditable = "true";
+    content.innerText = summaryText;
+    div.appendChild(content);
 
     const actions = document.createElement("div");
     actions.className = "summary-actions";
@@ -218,12 +172,16 @@
     const confirmBtn = document.createElement("button");
     confirmBtn.className = "btn-confirm";
     confirmBtn.textContent = "Confirm";
-    confirmBtn.addEventListener("click", handleConfirm);
+    confirmBtn.addEventListener("click", function () {
+      handleConfirm(content, originalText);
+    });
 
     const reviseBtn = document.createElement("button");
     reviseBtn.className = "btn-revise";
     reviseBtn.textContent = "Revise";
-    reviseBtn.addEventListener("click", handleRevise);
+    reviseBtn.addEventListener("click", function () {
+      handleRevise(content, reviseBtn);
+    });
 
     actions.appendChild(confirmBtn);
     actions.appendChild(reviseBtn);
@@ -235,19 +193,27 @@
   }
 
   // Handle Confirm button click
-  async function handleConfirm() {
+  async function handleConfirm(contentEl, originalText) {
     if (isProcessing) return;
     isProcessing = true;
     sendBtn.disabled = true;
     disableSummaryButtons();
 
-    addMessage("user", "Confirmed");
+    contentEl.contentEditable = "false";
+
+    var editedText = contentEl.innerText.trim();
+    var wasEdited = editedText !== originalText;
+
+    addMessage("user", wasEdited ? "Confirmed (with edits)" : "Confirmed");
     showTyping();
 
     try {
       const body = { confirm: true };
       if (confirmationImageBase64) {
         body.image_base64 = confirmationImageBase64;
+      }
+      if (wasEdited) {
+        body.edited_summary = editedText;
       }
 
       const response = await fetch("/api/chat", {
@@ -281,11 +247,11 @@
     messageInput.focus();
   }
 
-  // Handle Revise button click
-  function handleRevise() {
-    disableSummaryButtons();
-    messageInput.placeholder = "Type your corrections...";
-    messageInput.focus();
+  // Handle Revise button click — focus the editable summary for inline editing
+  function handleRevise(contentEl, reviseBtn) {
+    reviseBtn.disabled = true;
+    contentEl.classList.add("editing");
+    contentEl.focus();
   }
 
   // Show typing indicator
