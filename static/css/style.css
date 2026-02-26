@@ -126,6 +126,13 @@ body {
   background: #FFFFF1;
 }
 
+.privacy-notice {
+  margin-top: 8px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #999;
+}
+
 .image-upload-preview {
   display: none;
   margin-bottom: 8px;
