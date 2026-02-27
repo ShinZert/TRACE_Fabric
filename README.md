@@ -13,8 +13,8 @@ A conversational AI application that converts natural language descriptions and 
 - **Image-to-BPMN** — Upload a hand-drawn flowchart or screenshot and have it converted into a structured diagram
 - **Conversational editing** — Refine diagrams iteratively ("add an approval step before payment", "make the review gateway parallel")
 - **Visual editor** — Drag, resize, and rewire elements directly on the canvas using bpmn-js, then sync changes back
-- **Export** — Download diagrams as `.bpmn` files compatible with Camunda, Signavio, and other BPMN tools
-- **Summary-and-confirm flow** — New diagrams go through a summary step so you can review the AI's interpretation before generation
+- **Summary-and-confirm flow** — New diagrams go through a summary step so you can review and inline-edit the AI's interpretation before generation
+- **Export** — Download diagrams as `.bpmn` files (compatible with Camunda, Signavio, etc.) or as PNG images
 
 ## Architecture
 
@@ -36,7 +36,7 @@ in browser            with auto-layout      (schema +
 |---|---|
 | `app.py` | Flask routes — `/api/chat`, `/api/upload`, `/api/export`, `/api/sync`, `/api/reset` |
 | `config.py` | Centralized settings — model, token limits, conversation window, upload size |
-| `prompts/system_prompt.py` | LLM system prompt and edit-context template |
+| `prompts/system_prompt.py` | LLM system prompt, summary prompt, and edit-context template |
 | `prompts/few_shot_examples.py` | 3 few-shot examples included in every request |
 | `services/llm_service.py` | OpenAI integration with JSON extraction (raw, code-fenced, brace-matching fallback) |
 | `services/schema_validator.py` | Two-pass validation — jsonschema + semantic checks (orphans, flow refs, duplicates) |
@@ -88,10 +88,10 @@ Open [http://localhost:5000](http://localhost:5000) in your browser.
 ## Usage
 
 1. **Describe a process** — Type something like *"Order processing: customer places order, warehouse checks stock, if in stock ship it, otherwise notify customer"*
-2. **Review the summary** — The AI summarizes its understanding; confirm or provide corrections
+2. **Review the summary** — Fabric summarizes its understanding; confirm, inline-edit, or provide corrections
 3. **Refine** — Ask for changes: *"Add a payment verification step after order placement"*
 4. **Edit visually** — Drag elements on the canvas, then click **Sync Edits** to persist changes
-5. **Export** — Click **Export** to download the `.bpmn` file
+5. **Export** — Click **Export** for a `.bpmn` file or **PNG** for an image
 
 You can also **drag and drop an image** of a flowchart onto the chat panel to convert it into a BPMN diagram.
 
