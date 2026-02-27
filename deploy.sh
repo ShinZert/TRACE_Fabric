@@ -2,7 +2,7 @@
 set -e
 
 # =============================================================================
-# ProcessPilot Deploy Script
+# Fabric Deploy Script
 # =============================================================================
 # Usage:
 #   ./deploy.sh setup         First-time server setup (installs Docker, clones repo)
@@ -179,7 +179,7 @@ cmd_ssh() {
 }
 
 cmd_help() {
-    echo "ProcessPilot Deploy Script"
+    echo "Fabric Deploy Script"
     echo ""
     echo "Usage: ./deploy.sh <command>"
     echo ""

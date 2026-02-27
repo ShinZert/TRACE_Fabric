@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-BPMN Chatbot — a conversational AI app that converts natural language descriptions and flowchart images into BPMN 2.0 workflow diagrams. Users describe processes in chat, upload sketches, and iteratively refine diagrams through conversation.
+Fabric — a conversational AI app that converts natural language descriptions and flowchart images into BPMN 2.0 workflow diagrams. Users describe processes in chat, upload sketches, and iteratively refine diagrams through conversation.
 
 ## Development Commands
 

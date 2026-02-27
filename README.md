@@ -1,4 +1,4 @@
-# BPMN Chatbot
+# Fabric
 
 A conversational AI application that converts natural language descriptions and flowchart images into BPMN 2.0 workflow diagrams. Users describe processes in chat, upload sketches, and iteratively refine diagrams through conversation.
 

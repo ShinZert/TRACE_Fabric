@@ -1,4 +1,4 @@
-// BPMN ProcessPilot - Frontend Application
+// Fabric - Frontend Application
 
 (function () {
   "use strict";

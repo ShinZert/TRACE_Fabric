@@ -1,5 +1,5 @@
 """
-BPMN ProcessPilot - Flask Application
+Fabric - Flask Application
 Converts text descriptions and images into BPMN 2.0 workflow diagrams.
 """
 
