@@ -40,7 +40,7 @@ The chat endpoint handles four distinct flows:
 ### Key modules
 
 - **`app.py`** — Flask routes: `/api/chat` (main pipeline with 4 flows), `/api/upload` (image to base64), `/api/export` (download .bpmn), `/api/sync` (XML→JSON round-trip for manual edits), `/api/reset` (clear session)
-- **`config.py`** — Centralized config: model (`gpt-5-mini`), max completion tokens (4096), conversation window (6 turns), upload limit (16MB). No temperature parameter — GPT-5-mini doesn't support it
+- **`config.py`** — Centralized settings: model (`gpt-5-mini`), conversation window (6 turns = 12 messages), upload limit (16MB), secret key. Note: `max_completion_tokens` is **not** here — it's hardcoded in `llm_service.py` (4096 for diagram generation, 1024 for summaries). GPT-5-mini does not accept a `temperature` parameter, so none is sent
 - **`prompts/system_prompt.py`** — `SYSTEM_PROMPT` defines JSON output format and BPMN rules; `SUMMARY_PROMPT` instructs the LLM to produce plain-text process summaries; `EDIT_CONTEXT_TEMPLATE` injects current diagram state for edits
 - **`prompts/few_shot_examples.py`** — 3 few-shot examples always included in every request: linear workflow, exclusive gateway branching, parallel gateway fork/join. Loaded from `few_shot_examples.json`
 - **`services/llm_service.py`** — OpenAI integration; `generate_bpmn()` for diagram generation, `generate_summary()` for the summarize-then-confirm step; `_extract_json()` handles raw JSON, code-fenced JSON, and embedded JSON objects via brace-matching fallback; `_build_messages()` assembles the full conversation array
@@ -69,8 +69,19 @@ Element IDs must match `^[a-z][a-z0-9_]*$`. Supported types: `startEvent`, `endE
 
 ### Frontend
 
-Single-page app: `templates/index.html` + `static/js/app.js` + `static/css/style.css`. Two-panel layout: chat (400px fixed left) + bpmn-js modeler (flex right). Features: image drag-drop upload, .bpmn and PNG export, undo/redo via commandStack, sync button (amber highlight when dirty), zoom controls, inline summary editing with confirm/revise buttons, new session reset.
+Single-page app: `templates/index.html` + `static/js/app.js` + `static/css/style.css`. Two-panel layout: chat (400px fixed left) + bpmn-js modeler (flex right).
 
-## Validation pipeline
+### Gotchas
 
-Schema validation runs first (jsonschema against `BPMN_JSON_SCHEMA`), then semantic validation: exactly 1 startEvent, ≥1 endEvent, no orphan nodes, no dead ends, valid flow references, no duplicate IDs, startEvent has no incoming flows, endEvent has no outgoing flows. The `/api/sync` route stores JSON even on validation failure (lenient mode) to allow incremental fixing.
+- **Layout is always recomputed** — manual node positioning from bpmn-js is discarded on every regeneration; only topology survives the round-trip.
+- **Image inputs skip edit context** — providing an image always treats the request as a fresh generation, even if `current_json` exists.
+- **`/api/sync` is lenient** — stores JSON even on validation failure to allow incremental fixing.
+- **ID normalization on sync** — bpmn-js produces camelCase IDs (e.g., `Task_1`); `bpmn_xml_to_json` rewrites them to snake_case to match the schema regex `^[a-z][a-z0-9_]*$`.
+- **`REVERSE_TYPE_MAP`** silently downgrades unsupported BPMN types added via the modeler (inclusiveGateway → exclusiveGateway, subProcess → task, sendTask → serviceTask, manualTask → userTask).
+- **Few-shot examples** are sent with every request — they live in `prompts/few_shot_examples.json` and are loaded by `prompts/few_shot_examples.py`. Keep that JSON in sync if you change the schema.
+
+## Deployment
+
+Production runs as two containers via `docker-compose.yml`: the Flask app (gunicorn, 2 workers, 120s timeout) on port 8000, fronted by nginx on port 80. The `deploy.sh` script wraps SSH-based deploys to a Digital Ocean droplet — `./deploy.sh deploy` does `git pull` + `docker compose up -d --build` on the remote. See `DEVELOPMENT.md` for full droplet setup, HTTPS via Certbot, and the `set-token` flow for storing a GitHub PAT on the server.
+
+Note: `deploy.sh` references `APP_DIR=/opt/bpmn-chatbot` (legacy name from before the Fabric rename).
