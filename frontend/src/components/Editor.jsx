@@ -795,15 +795,17 @@ function EditorInner({
         )}
       </div>
 
-      <Inspector
-        node={selectedNode}
-        edge={selectedEdge}
-        issues={selectedIssues}
-        onUpdateNode={handleUpdateNode}
-        onDeleteNode={handleDeleteNode}
-        onUpdateEdge={handleUpdateEdge}
-        onDeleteEdge={handleDeleteEdge}
-      />
+      {(selectedNode || selectedEdge) && (
+        <Inspector
+          node={selectedNode}
+          edge={selectedEdge}
+          issues={selectedIssues}
+          onUpdateNode={handleUpdateNode}
+          onDeleteNode={handleDeleteNode}
+          onUpdateEdge={handleUpdateEdge}
+          onDeleteEdge={handleDeleteEdge}
+        />
+      )}
       </div>
     </div>
   );
