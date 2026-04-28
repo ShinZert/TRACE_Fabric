@@ -1,5 +1,6 @@
 services:
   app:
+    image: ghcr.io/shinzert/trace_fabric:${TAG:-latest}
     build: .
     env_file: .env
     expose:
