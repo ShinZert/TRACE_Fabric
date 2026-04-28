@@ -1,0 +1,781 @@
+{
+  "version": 1,
+  "workflows": [
+    {
+      "key": "beam_scribe",
+      "title": "Beam \u2014 Automated Scribe for Community Care Worker",
+      "domain": "Healthcare / Social Care",
+      "source_image": "prompts/assets_workflow/Beam - Automated Scribe for Community Care Worker.png",
+      "elapsed_sec": 181.8,
+      "error": "LLM API error: APITimeoutError: Request timed out.",
+      "validation": {
+        "schema_ok": false,
+        "semantic_ok": false,
+        "errors": [
+          "LLM API error: APITimeoutError: Request timed out."
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "key": "civic_casework",
+      "title": "Civic AI \u2014 Casework Triage",
+      "domain": "Government",
+      "source_image": "prompts/assets_workflow/Civic AI - Casework Triage.png",
+      "elapsed_sec": 59.5,
+      "trace": {
+        "process_name": "Casework AI Routing and Response",
+        "elements": [
+          {
+            "id": "start_1",
+            "type": "startEvent",
+            "name": "Start"
+          },
+          {
+            "id": "congressional_caseworker",
+            "type": "humanSource",
+            "name": "Congressional Caseworker"
+          },
+          {
+            "id": "staff_receives",
+            "type": "inputOutput",
+            "name": "Staff receives\n\u2022 Emails\n\u2022 Voice Mails\n\u2022 Physical Mail\n\u2022 Webforms\n\u2022 In-Person Communication"
+          },
+          {
+            "id": "casework_identifying_ai",
+            "type": "fixedAIModel",
+            "name": "Casework Identifying AI"
+          },
+          {
+            "id": "system_surfaces",
+            "type": "serviceTask",
+            "name": "System surfaces and redirects casework to the appropriate inbox."
+          },
+          {
+            "id": "casework_ai_system",
+            "type": "fixedAIModel",
+            "name": "Casework AI System"
+          },
+          {
+            "id": "internal_ai_outputs",
+            "type": "inputOutput",
+            "name": "Internal AI System produces:\n\u2022 Associated Gov Agency\n\u2022 Possible agency contacts\n\u2022 Tiered tagging system\n\u2022 Proposed response\n\u2022 Identifies missing documentation and next communication steps"
+          },
+          {
+            "id": "staffer_provides",
+            "type": "inputOutput",
+            "name": "Staffer provides:\n\u2022 Internal point of contact/caseworker"
+          },
+          {
+            "id": "message_sent",
+            "type": "inputOutput",
+            "name": "Message sent to Agency or Constituent"
+          },
+          {
+            "id": "agency_response",
+            "type": "inputOutput",
+            "name": "Agency or Constituent Response Received"
+          },
+          {
+            "id": "reads_response",
+            "type": "serviceTask",
+            "name": "Reads response and proposes next step"
+          },
+          {
+            "id": "response_check_decision",
+            "type": "decisionPoint",
+            "name": "Response checked and approved"
+          },
+          {
+            "id": "accept",
+            "type": "accept",
+            "name": "Accept"
+          },
+          {
+            "id": "modify",
+            "type": "modify",
+            "name": "Modify"
+          },
+          {
+            "id": "response_is_sent",
+            "type": "inputOutput",
+            "name": "Response is sent to Agency/Constituent"
+          },
+          {
+            "id": "case_closed",
+            "type": "inputOutput",
+            "name": "Case is Closed/Completed"
+          },
+          {
+            "id": "reporting",
+            "type": "inputOutput",
+            "name": "Reporting metrics and agency oversight are derived from closed cases"
+          },
+          {
+            "id": "end_1",
+            "type": "endEvent",
+            "name": "End"
+          }
+        ],
+        "flows": [
+          {
+            "id": "flow_1",
+            "from": "start_1",
+            "to": "congressional_caseworker"
+          },
+          {
+            "id": "flow_2",
+            "from": "congressional_caseworker",
+            "to": "staff_receives"
+          },
+          {
+            "id": "flow_3",
+            "from": "staff_receives",
+            "to": "casework_identifying_ai"
+          },
+          {
+            "id": "flow_4",
+            "from": "casework_identifying_ai",
+            "to": "system_surfaces"
+          },
+          {
+            "id": "flow_5",
+            "from": "system_surfaces",
+            "to": "casework_ai_system"
+          },
+          {
+            "id": "flow_6",
+            "from": "system_surfaces",
+            "to": "staffer_provides"
+          },
+          {
+            "id": "flow_7",
+            "from": "casework_ai_system",
+            "to": "internal_ai_outputs"
+          },
+          {
+            "id": "flow_8",
+            "from": "internal_ai_outputs",
+            "to": "message_sent"
+          },
+          {
+            "id": "flow_9",
+            "from": "staffer_provides",
+            "to": "message_sent"
+          },
+          {
+            "id": "flow_10",
+            "from": "message_sent",
+            "to": "agency_response"
+          },
+          {
+            "id": "flow_11",
+            "from": "agency_response",
+            "to": "casework_ai_system"
+          },
+          {
+            "id": "flow_12",
+            "from": "casework_ai_system",
+            "to": "reads_response"
+          },
+          {
+            "id": "flow_13",
+            "from": "reads_response",
+            "to": "response_check_decision"
+          },
+          {
+            "id": "flow_14",
+            "from": "response_check_decision",
+            "to": "accept",
+            "name": "Accept"
+          },
+          {
+            "id": "flow_15",
+            "from": "response_check_decision",
+            "to": "modify",
+            "name": "Modify"
+          },
+          {
+            "id": "flow_16",
+            "from": "accept",
+            "to": "response_is_sent"
+          },
+          {
+            "id": "flow_17",
+            "from": "modify",
+            "to": "response_is_sent"
+          },
+          {
+            "id": "flow_18",
+            "from": "response_is_sent",
+            "to": "case_closed"
+          },
+          {
+            "id": "flow_19",
+            "from": "case_closed",
+            "to": "reporting"
+          },
+          {
+            "id": "flow_20",
+            "from": "reporting",
+            "to": "end_1"
+          }
+        ]
+      },
+      "validation": {
+        "schema_ok": true,
+        "semantic_ok": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "key": "civic_correspondence",
+      "title": "Civic AI \u2014 Congressional Correspondence",
+      "domain": "Government",
+      "source_image": "prompts/assets_workflow/Civic AI - Congressional Correspondence.png",
+      "elapsed_sec": 55.8,
+      "trace": {
+        "process_name": "Congressional Constituent Message Routing",
+        "elements": [
+          {
+            "id": "start_1",
+            "type": "startEvent",
+            "name": "Start"
+          },
+          {
+            "id": "junior_congressional_staff",
+            "type": "humanSource",
+            "name": "Junior Congressional Staff"
+          },
+          {
+            "id": "staff_receives",
+            "type": "inputOutput",
+            "name": "Staff receives\n\u2022 Emails\n\u2022 Voice Mails\n\u2022 Physical Mail\n\u2022 Communicating with Congress (CWC)\n\u2022 Webforms\n\u2022 In-Person Communication"
+          },
+          {
+            "id": "automatic_ai_tagging_1",
+            "type": "fixedAIModel",
+            "name": "Automatic AI Tagging"
+          },
+          {
+            "id": "system_surfaces",
+            "type": "inputOutput",
+            "name": "System surfaces:\n\u2022 Possible threat\n\u2022 First correspondence\n\u2022 Frequent flyer\n\u2022 Do Not Mail"
+          },
+          {
+            "id": "automatic_ai_tagging_2",
+            "type": "fixedAIModel",
+            "name": "Automatic AI Tagging"
+          },
+          {
+            "id": "internal_ai_system_produces",
+            "type": "inputOutput",
+            "name": "Internal AI System produces:\n\u2022 Associated Batch(es)"
+          },
+          {
+            "id": "staffer_provides",
+            "type": "humanSource",
+            "name": "Staffer provides:\n\u2022 Policy stance\n\u2022 Reroutes message accordingly (scheduling, casework, etc.)\n\u2022 Direct Response\n\u2022 Assign Task"
+          },
+          {
+            "id": "message_redirected_to_batches",
+            "type": "inputOutput",
+            "name": "Message redirected to batches"
+          },
+          {
+            "id": "email_response_generator",
+            "type": "fixedAIModel",
+            "name": "Email response generator"
+          },
+          {
+            "id": "drafted_email_response",
+            "type": "inputOutput",
+            "name": "Drafted Email Response"
+          },
+          {
+            "id": "response_checked",
+            "type": "decisionPoint",
+            "name": "Response Checked"
+          },
+          {
+            "id": "accept",
+            "type": "accept",
+            "name": "Accept"
+          },
+          {
+            "id": "modify",
+            "type": "modify",
+            "name": "Modify"
+          },
+          {
+            "id": "email_response_routed",
+            "type": "finalOutcome",
+            "name": "Email Response routed for office's internal approval"
+          }
+        ],
+        "flows": [
+          {
+            "id": "flow_1",
+            "from": "start_1",
+            "to": "junior_congressional_staff"
+          },
+          {
+            "id": "flow_2",
+            "from": "junior_congressional_staff",
+            "to": "staff_receives"
+          },
+          {
+            "id": "flow_3",
+            "from": "staff_receives",
+            "to": "automatic_ai_tagging_1"
+          },
+          {
+            "id": "flow_4",
+            "from": "automatic_ai_tagging_1",
+            "to": "system_surfaces"
+          },
+          {
+            "id": "flow_5",
+            "from": "system_surfaces",
+            "to": "automatic_ai_tagging_2"
+          },
+          {
+            "id": "flow_6",
+            "from": "system_surfaces",
+            "to": "staffer_provides"
+          },
+          {
+            "id": "flow_7",
+            "from": "automatic_ai_tagging_2",
+            "to": "internal_ai_system_produces"
+          },
+          {
+            "id": "flow_8",
+            "from": "internal_ai_system_produces",
+            "to": "message_redirected_to_batches"
+          },
+          {
+            "id": "flow_9",
+            "from": "staffer_provides",
+            "to": "message_redirected_to_batches"
+          },
+          {
+            "id": "flow_10",
+            "from": "message_redirected_to_batches",
+            "to": "email_response_generator"
+          },
+          {
+            "id": "flow_11",
+            "from": "email_response_generator",
+            "to": "drafted_email_response"
+          },
+          {
+            "id": "flow_12",
+            "from": "drafted_email_response",
+            "to": "response_checked"
+          },
+          {
+            "id": "flow_13",
+            "from": "response_checked",
+            "to": "accept",
+            "name": "Accept"
+          },
+          {
+            "id": "flow_14",
+            "from": "response_checked",
+            "to": "modify",
+            "name": "Modify"
+          },
+          {
+            "id": "flow_15",
+            "from": "accept",
+            "to": "email_response_routed"
+          },
+          {
+            "id": "flow_16",
+            "from": "modify",
+            "to": "email_response_routed"
+          }
+        ]
+      },
+      "validation": {
+        "schema_ok": true,
+        "semantic_ok": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "key": "civic_sentiment",
+      "title": "Civic AI \u2014 Constituent Sentiment Analysis",
+      "domain": "Government",
+      "source_image": "prompts/assets_workflow/Civic AI - Sentiment Analysis for Constituent.png",
+      "elapsed_sec": 36.3,
+      "trace": {
+        "process_name": "Sentiment-Based Constituent Outreach",
+        "elements": [
+          {
+            "id": "start_1",
+            "type": "startEvent",
+            "name": "Start"
+          },
+          {
+            "id": "junior_congressional_staff",
+            "type": "humanSource",
+            "name": "Junior Congressional Staff"
+          },
+          {
+            "id": "staff_inbox_contains",
+            "type": "inputOutput",
+            "name": "Staff inbox contains:\n\u2022 Emails\n\u2022 Voice Mails\n\u2022 Physical Mail\n\u2022 Communicating with Congress (CWC)\n\u2022 Webforms\n\u2022 In-Person Communication"
+          },
+          {
+            "id": "sentiment_model",
+            "type": "fixedAIModel",
+            "name": "Sentiment Model"
+          },
+          {
+            "id": "system_surfaces",
+            "type": "inputOutput",
+            "name": "System surfaces:\n\u2022 Sentiment on each individual piece of correspondence"
+          },
+          {
+            "id": "sentiment_attached",
+            "type": "inputOutput",
+            "name": "Sentiment is attached/tied to correspondence and is housed on:\n\u2022 Constituent Profiles\n\u2022 Batches\n\u2022 Maps\n\u2022 Dashboard\n\u2022 Reporting Pages"
+          },
+          {
+            "id": "final_outcome",
+            "type": "finalOutcome",
+            "name": "Sentiment is used to create outreach and as a proxy for public opinion towards the office."
+          }
+        ],
+        "flows": [
+          {
+            "id": "flow_1",
+            "from": "start_1",
+            "to": "junior_congressional_staff"
+          },
+          {
+            "id": "flow_2",
+            "from": "junior_congressional_staff",
+            "to": "staff_inbox_contains"
+          },
+          {
+            "id": "flow_3",
+            "from": "staff_inbox_contains",
+            "to": "sentiment_model"
+          },
+          {
+            "id": "flow_4",
+            "from": "sentiment_model",
+            "to": "system_surfaces"
+          },
+          {
+            "id": "flow_5",
+            "from": "system_surfaces",
+            "to": "sentiment_attached"
+          },
+          {
+            "id": "flow_6",
+            "from": "sentiment_attached",
+            "to": "final_outcome"
+          }
+        ]
+      },
+      "validation": {
+        "schema_ok": true,
+        "semantic_ok": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "key": "civic_social",
+      "title": "Civic AI \u2014 Social Media Drafting",
+      "domain": "Government",
+      "source_image": "prompts/assets_workflow/Civic AI - Social Media Drafting.png",
+      "elapsed_sec": 36.5,
+      "trace": {
+        "process_name": "Social Media Post Drafting with AI",
+        "elements": [
+          {
+            "id": "start_1",
+            "type": "startEvent",
+            "name": "Start"
+          },
+          {
+            "id": "congressional_comms_director",
+            "type": "humanSource",
+            "name": "Congressional Comms Director"
+          },
+          {
+            "id": "staff_chooses_platform",
+            "type": "userTask",
+            "name": "Staff chooses social media platform: \u2022 Twitter \u2022 Instagram \u2022 Facebook \u2022 Linkedin \u2022 Etc."
+          },
+          {
+            "id": "social_media_drafting_ai",
+            "type": "fixedAIModel",
+            "name": "Social Media Drafting AI"
+          },
+          {
+            "id": "system_surfaces_drafted_post",
+            "type": "inputOutput",
+            "name": "System surfaces drafted social media post with correct word count, hashtags, and context."
+          },
+          {
+            "id": "draft_checked",
+            "type": "decisionPoint",
+            "name": "Draft Checked"
+          },
+          {
+            "id": "accept",
+            "type": "accept",
+            "name": "Accept"
+          },
+          {
+            "id": "modify",
+            "type": "modify",
+            "name": "Modify"
+          },
+          {
+            "id": "email_response_routed",
+            "type": "finalOutcome",
+            "name": "Email Response routed for office\u2019s internal approval"
+          }
+        ],
+        "flows": [
+          {
+            "id": "flow_1",
+            "from": "start_1",
+            "to": "congressional_comms_director"
+          },
+          {
+            "id": "flow_2",
+            "from": "congressional_comms_director",
+            "to": "staff_chooses_platform"
+          },
+          {
+            "id": "flow_3",
+            "from": "staff_chooses_platform",
+            "to": "social_media_drafting_ai"
+          },
+          {
+            "id": "flow_4",
+            "from": "social_media_drafting_ai",
+            "to": "system_surfaces_drafted_post"
+          },
+          {
+            "id": "flow_5",
+            "from": "system_surfaces_drafted_post",
+            "to": "draft_checked"
+          },
+          {
+            "id": "flow_6",
+            "from": "draft_checked",
+            "to": "accept",
+            "name": "Accept"
+          },
+          {
+            "id": "flow_7",
+            "from": "draft_checked",
+            "to": "modify",
+            "name": "Modify"
+          },
+          {
+            "id": "flow_8",
+            "from": "accept",
+            "to": "email_response_routed"
+          },
+          {
+            "id": "flow_9",
+            "from": "modify",
+            "to": "email_response_routed"
+          }
+        ]
+      },
+      "validation": {
+        "schema_ok": true,
+        "semantic_ok": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "key": "claim_geo",
+      "title": "Claim \u2014 Generative Engine Optimisation",
+      "domain": "Marketing / SEO",
+      "source_image": "prompts/assets_workflow/Claim- Generative Engine Optimization LLM Webpage.png",
+      "elapsed_sec": 180.8,
+      "trace": {
+        "process_name": "LLM Website Content Workflow",
+        "elements": [
+          {
+            "id": "start_event",
+            "type": "startEvent",
+            "name": "Start"
+          },
+          {
+            "id": "marketing_executive",
+            "type": "humanSource",
+            "name": "Marketing Executive"
+          },
+          {
+            "id": "brands_website",
+            "type": "inputOutput",
+            "name": "Brands website"
+          },
+          {
+            "id": "ai_icon",
+            "type": "fixedAIModel",
+            "name": "Generative AI Engine (icon)"
+          },
+          {
+            "id": "llm_content_creation",
+            "type": "inputOutput",
+            "name": "LLM content creation for brand\u2019s website"
+          },
+          {
+            "id": "content_for_generative_ai_engines",
+            "type": "inputOutput",
+            "name": "Content for Generative AI Engines"
+          },
+          {
+            "id": "marketing_executive_check",
+            "type": "decisionPoint",
+            "name": "Marketing Executive Check"
+          },
+          {
+            "id": "true_node",
+            "type": "inputOutput",
+            "name": "True"
+          },
+          {
+            "id": "webpage_updated",
+            "type": "finalOutcome",
+            "name": "Webpage updated"
+          },
+          {
+            "id": "false_node",
+            "type": "inputOutput",
+            "name": "False"
+          },
+          {
+            "id": "approval",
+            "type": "decisionPoint",
+            "name": "Approval"
+          },
+          {
+            "id": "modify",
+            "type": "modify",
+            "name": "Modify"
+          },
+          {
+            "id": "accept",
+            "type": "accept",
+            "name": "Accept"
+          },
+          {
+            "id": "manual_correction_and_update",
+            "type": "inputOutput",
+            "name": "Manual correction and update"
+          }
+        ],
+        "flows": [
+          {
+            "id": "flow_1",
+            "from": "start_event",
+            "to": "marketing_executive"
+          },
+          {
+            "id": "flow_2",
+            "from": "marketing_executive",
+            "to": "brands_website"
+          },
+          {
+            "id": "flow_3",
+            "from": "brands_website",
+            "to": "ai_icon"
+          },
+          {
+            "id": "flow_4",
+            "from": "ai_icon",
+            "to": "llm_content_creation"
+          },
+          {
+            "id": "flow_5",
+            "from": "llm_content_creation",
+            "to": "content_for_generative_ai_engines"
+          },
+          {
+            "id": "flow_6",
+            "from": "content_for_generative_ai_engines",
+            "to": "marketing_executive_check"
+          },
+          {
+            "id": "flow_7",
+            "from": "marketing_executive_check",
+            "to": "true_node",
+            "name": "True"
+          },
+          {
+            "id": "flow_8",
+            "from": "true_node",
+            "to": "webpage_updated"
+          },
+          {
+            "id": "flow_9",
+            "from": "marketing_executive_check",
+            "to": "false_node",
+            "name": "False"
+          },
+          {
+            "id": "flow_10",
+            "from": "false_node",
+            "to": "approval"
+          },
+          {
+            "id": "flow_11",
+            "from": "approval",
+            "to": "modify",
+            "name": "Modify"
+          },
+          {
+            "id": "flow_12",
+            "from": "approval",
+            "to": "accept",
+            "name": "Accept"
+          },
+          {
+            "id": "flow_13",
+            "from": "modify",
+            "to": "manual_correction_and_update"
+          },
+          {
+            "id": "flow_14",
+            "from": "accept",
+            "to": "manual_correction_and_update"
+          },
+          {
+            "id": "flow_15",
+            "from": "manual_correction_and_update",
+            "to": "approval"
+          },
+          {
+            "id": "flow_16",
+            "from": "approval",
+            "to": "webpage_updated"
+          }
+        ]
+      },
+      "validation": {
+        "schema_ok": true,
+        "semantic_ok": true,
+        "errors": [],
+        "warnings": []
+      }
+    }
+  ]
+}
