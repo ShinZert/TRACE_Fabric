@@ -18,7 +18,12 @@ BPMN_JSON_SCHEMA = {
                         "enum": [
                             "startEvent", "endEvent",
                             "task", "userTask", "serviceTask", "scriptTask",
-                            "exclusiveGateway", "parallelGateway"
+                            "exclusiveGateway", "parallelGateway",
+                            "humanSource", "inputOutput",
+                            "fixedAIModel", "trainingAIModel",
+                            "governanceMechanism", "ui", "decisionPoint",
+                            "accept", "reject", "modify", "restart",
+                            "finalOutcome"
                         ]
                     },
                     "name": {"type": "string"}
@@ -58,6 +63,9 @@ def validate_schema(data):
     return len(errors) == 0, errors
 
 
+END_TYPES = {"endEvent", "finalOutcome"}
+
+
 def validate_semantics(data):
     """Semantic validation for BPMN correctness. Returns (is_valid, errors)."""
     errors = []
@@ -74,10 +82,10 @@ def validate_semantics(data):
     elif len(start_events) > 1:
         errors.append(f"Process has {len(start_events)} startEvents; exactly 1 is required.")
 
-    # At least one endEvent
-    end_events = [el for el in elements if el["type"] == "endEvent"]
+    # At least one terminal node (endEvent or Fabric finalOutcome)
+    end_events = [el for el in elements if el["type"] in END_TYPES]
     if len(end_events) == 0:
-        errors.append("Process must have at least one endEvent.")
+        errors.append("Process must have at least one endEvent or finalOutcome.")
 
     # Unique element IDs
     seen_ids = set()
@@ -114,7 +122,7 @@ def validate_semantics(data):
         etype = el["type"]
         if etype != "startEvent" and incoming.get(eid, 0) == 0:
             errors.append(f"Element '{eid}' has no incoming flows (orphan).")
-        if etype != "endEvent" and outgoing.get(eid, 0) == 0:
+        if etype not in END_TYPES and outgoing.get(eid, 0) == 0:
             errors.append(f"Element '{eid}' has no outgoing flows (dead end).")
 
     # startEvent should not have incoming flows
@@ -122,19 +130,9 @@ def validate_semantics(data):
         if incoming.get(el["id"], 0) > 0:
             errors.append(f"startEvent '{el['id']}' should not have incoming flows.")
 
-    # endEvent should not have outgoing flows
+    # Terminal nodes should not have outgoing flows
     for el in end_events:
         if outgoing.get(el["id"], 0) > 0:
-            errors.append(f"endEvent '{el['id']}' should not have outgoing flows.")
+            errors.append(f"Terminal node '{el['id']}' should not have outgoing flows.")
 
     return len(errors) == 0, errors
-
-
-def validate(data):
-    """Run both schema and semantic validation. Returns (is_valid, errors)."""
-    schema_ok, schema_errors = validate_schema(data)
-    if not schema_ok:
-        return False, schema_errors
-
-    semantic_ok, semantic_errors = validate_semantics(data)
-    return semantic_ok, semantic_errors
