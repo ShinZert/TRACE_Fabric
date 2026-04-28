@@ -688,12 +688,6 @@ body {
   background: #ffffff;
   overflow-y: auto;
 }
-.inspector-empty {
-  color: #86868b;
-  font-style: italic;
-  font-size: 12px;
-  padding: 4px 0;
-}
 .inspector label {
   display: block;
   font-size: 11px;
