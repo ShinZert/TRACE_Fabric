@@ -27,7 +27,7 @@ fi
 
 # --- Configuration -----------------------------------------------------------
 # Fill in DROPLET_IP after creating the dev droplet on Digital Ocean.
-DROPLET_IP=""                                       # <-- TODO: set to dev droplet IP
+DROPLET_IP="159.223.152.23"
 DROPLET_USER="root"
 APP_DIR="/opt/trace_fabric_dev"
 REPO_URL="https://github.com/ShinZert/TRACE_Fabric.git"
