@@ -41,7 +41,9 @@ BPMN_JSON_SCHEMA = {
                     "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
                     "from": {"type": "string"},
                     "to": {"type": "string"},
-                    "name": {"type": "string"}
+                    "name": {"type": "string"},
+                    "from_side": {"type": "string", "enum": ["top", "right", "bottom", "left"]},
+                    "to_side": {"type": "string", "enum": ["top", "right", "bottom", "left"]}
                 },
                 "additionalProperties": False
             }

@@ -9,6 +9,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
+  reconnectEdge,
   useReactFlow,
 } from "@xyflow/react";
 import { TYPE_STYLES, slugifyType } from "../lib/types";
@@ -18,6 +19,7 @@ import {
   flowToTrace,
   flowEdgeDefaults,
 } from "../lib/layout";
+import { validateTrace } from "../lib/validate";
 import { nodeTypes } from "./FabricNode";
 import { edgeTypes } from "./FabricEdge";
 import { LeftPalette } from "./LeftPalette";
@@ -61,6 +63,7 @@ function EditorInner({
   const [titleDraft, setTitleDraft] = useState("");
   const [mode, setMode] = useState("pan");
   const [history, setHistory] = useState({ past: [], future: [] });
+  const [showIssues, setShowIssues] = useState(false);
 
   const idCounter = useRef(0);
   const lastTraceSig = useRef("");
@@ -89,9 +92,15 @@ function EditorInner({
   }, [trace]);
 
   // ---------- helpers --------------------------------------------------
+  // Pre-stamp lastTraceSig with the about-to-be-committed signature so the
+  // trace-prop effect treats the round-trip as "already seen" and skips its
+  // re-layout. Without this, structural local edits (reconnect, add/delete
+  // edge or node) bounce the canvas back to a fresh dagre layout.
   const commit = useCallback(
     (nextNodes, nextEdges) => {
-      onTraceCommit?.(flowToTrace(processName, nextNodes, nextEdges));
+      const newTrace = flowToTrace(processName, nextNodes, nextEdges);
+      lastTraceSig.current = traceSignature(newTrace);
+      onTraceCommit?.(newTrace);
     },
     [onTraceCommit, processName]
   );
@@ -150,18 +159,61 @@ function EditorInner({
     commit(nodes, edges);
   }, [commit, nodes, edges]);
 
+  // Helper: extract a side name from a handle id like "side-top".
+  // Returns null for "side-auto" or anything we don't recognize.
+  const sideFromHandle = (handle) => {
+    if (!handle || !handle.startsWith("side-")) return null;
+    const s = handle.slice(5);
+    return s === "auto" ? null : s;
+  };
+
   const onConnect = useCallback(
     (conn) => {
       pushHistory();
+      const fromSide = sideFromHandle(conn.sourceHandle);
+      const toSide = sideFromHandle(conn.targetHandle);
+      const explicit = !!(fromSide || toSide);
       setEdges((es) => {
         const next = addEdge(
           {
             ...conn,
             id: `flow_${Date.now()}`,
             type: "fabric",
+            data: { explicitSides: explicit, fromSide, toSide },
             ...flowEdgeDefaults,
           },
           es
+        );
+        commit(nodes, next);
+        return next;
+      });
+    },
+    [pushHistory, commit, nodes]
+  );
+
+  // Drag an existing edge endpoint onto another node to re-attach it
+  // (draw.io / miro style). reconnectEdge swaps source/target/handles in
+  // place so the edge id stays stable.
+  const onReconnect = useCallback(
+    (oldEdge, newConnection) => {
+      pushHistory();
+      const fromSide = sideFromHandle(newConnection.sourceHandle);
+      const toSide = sideFromHandle(newConnection.targetHandle);
+      const explicit = !!(fromSide || toSide);
+      setEdges((es) => {
+        // shouldReplaceId:false preserves the original flow_* id so the
+        // schema's ^[a-z][a-z0-9_]*$ check still passes on next sync (the
+        // default replaces it with React Flow's internal `xy-edge__...`).
+        const reconnected = reconnectEdge(oldEdge, newConnection, es, {
+          shouldReplaceId: false,
+        });
+        const next = reconnected.map((e) =>
+          e.id === oldEdge.id
+            ? {
+                ...e,
+                data: { ...e.data, explicitSides: explicit, fromSide, toSide },
+              }
+            : e
         );
         commit(nodes, next);
         return next;
@@ -384,6 +436,27 @@ function EditorInner({
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo]);
 
+  // Live client-side validation. The backend (services/schema_validator.py)
+  // remains authoritative; this just gives instant in-canvas feedback so the
+  // user can see *where* the problem is without waiting for /api/sync.
+  const validation = useMemo(
+    () => validateTrace(flowToTrace(processName, nodes, edges)),
+    [processName, nodes, edges]
+  );
+
+  // Attach per-node issues for FabricNode to render its red ring + tooltip.
+  // Decorated copies are passed to React Flow only — raw `nodes` state is
+  // untouched so commit() / history snapshots never carry validation data
+  // into the trace JSON.
+  const decoratedNodes = useMemo(() => {
+    if (validation.byNodeId.size === 0) return nodes;
+    return nodes.map((n) => {
+      const issues = validation.byNodeId.get(n.id);
+      if (!issues) return n;
+      return { ...n, data: { ...n.data, issues } };
+    });
+  }, [nodes, validation]);
+
   const selectedNode = useMemo(
     () => nodes.find((n) => n.id === selectedId) || null,
     [nodes, selectedId]
@@ -391,6 +464,22 @@ function EditorInner({
   const selectedEdge = useMemo(
     () => edges.find((e) => e.id === selectedEdgeId) || null,
     [edges, selectedEdgeId]
+  );
+  const selectedIssues = selectedNode
+    ? validation.byNodeId.get(selectedNode.id) || []
+    : [];
+
+  const revealNode = useCallback(
+    (nodeId) => {
+      setSelectedId(nodeId);
+      setSelectedEdgeId(null);
+      reactFlow.fitView({
+        nodes: [{ id: nodeId }],
+        duration: 300,
+        padding: 0.4,
+      });
+    },
+    [reactFlow]
   );
 
   const canUndo = history.past.length > 0;
@@ -434,6 +523,24 @@ function EditorInner({
           >
             {isSyncing ? "Saving…" : "Editing…"}
           </span>
+        )}
+        {validation.issues.length > 0 && (
+          <button
+            type="button"
+            className={
+              "issues-pill" +
+              (validation.summary.errorCount > 0
+                ? " issues-pill-error"
+                : " issues-pill-warning") +
+              (showIssues ? " issues-pill-active" : "")
+            }
+            onClick={() => setShowIssues((s) => !s)}
+            title="Show diagram issues"
+          >
+            {validation.issues.length === 1
+              ? "1 issue"
+              : `${validation.issues.length} issues`}
+          </button>
         )}
         <div className="editor-toolbar-spacer" />
         <button className="btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)">
@@ -482,7 +589,7 @@ function EditorInner({
         <LeftPalette mode={mode} setMode={setMode} />
         <EditorContext.Provider value={{ editingId, finishEdit, editingEdgeId, finishEdgeEdit }}>
         <ReactFlow
-          nodes={nodes}
+          nodes={decoratedNodes}
           edges={edges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -493,6 +600,9 @@ function EditorInner({
           onNodesDelete={onNodesDelete}
           onEdgesDelete={onEdgesDelete}
           onConnect={onConnect}
+          onReconnect={onReconnect}
+          connectionMode="loose"
+          connectionLineType="smoothstep"
           onNodeClick={(_, n) => { setSelectedId(n.id); setSelectedEdgeId(null); }}
           onNodeDoubleClick={(_, n) => startEdit(n.id)}
           onEdgeClick={(_, e) => { setSelectedEdgeId(e.id); setSelectedId(null); }}
@@ -520,6 +630,46 @@ function EditorInner({
           <Controls position="bottom-left" showInteractive={false} />
         </ReactFlow>
         </EditorContext.Provider>
+        {showIssues && validation.issues.length > 0 && (
+          <div className="issues-panel" role="dialog" aria-label="Diagram issues">
+            <div className="issues-panel-header">
+              <span className="issues-panel-title">
+                {validation.issues.length === 1
+                  ? "1 issue"
+                  : `${validation.issues.length} issues`}
+              </span>
+              <button
+                type="button"
+                className="issues-panel-close"
+                onClick={() => setShowIssues(false)}
+                title="Close"
+                aria-label="Close issues panel"
+              >
+                ×
+              </button>
+            </div>
+            <ul className="issues-panel-list">
+              {validation.issues.map((it, idx) => (
+                <li
+                  key={idx}
+                  className={`issues-panel-item issues-panel-item-${it.severity}`}
+                >
+                  <span className="issues-panel-dot" aria-hidden="true" />
+                  <span className="issues-panel-msg">{it.message}</span>
+                  {it.nodeId && (
+                    <button
+                      type="button"
+                      className="issues-panel-reveal"
+                      onClick={() => revealNode(it.nodeId)}
+                    >
+                      Reveal
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {nodes.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-card">
@@ -557,6 +707,7 @@ function EditorInner({
       <Inspector
         node={selectedNode}
         edge={selectedEdge}
+        issues={selectedIssues}
         onUpdateNode={handleUpdateNode}
         onDeleteNode={handleDeleteNode}
         onUpdateEdge={handleUpdateEdge}

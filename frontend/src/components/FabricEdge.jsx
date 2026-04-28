@@ -1,10 +1,17 @@
 import { useContext, useEffect, useRef } from "react";
-import { BaseEdge, EdgeLabelRenderer, getBezierPath } from "@xyflow/react";
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  getSmoothStepPath,
+} from "@xyflow/react";
 import { EditorContext } from "./editorContext";
 
 // Custom edge that supports inline label editing via double-click. Uses
 // React Flow's EdgeLabelRenderer to overlay an HTML element at the edge
 // midpoint so we can render either a styled span or a focused input.
+// Path is smoothstep (orthogonal) and anchored to whichever per-side
+// handle the edge points at — so reconnect anchors line up with where
+// the line is actually drawn.
 export function FabricEdge({
   id,
   sourceX,
@@ -18,9 +25,14 @@ export function FabricEdge({
   markerEnd,
   selected,
 }) {
-  const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX, sourceY, sourcePosition,
-    targetX, targetY, targetPosition,
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: 8,
   });
 
   const ctx = useContext(EditorContext) || {};

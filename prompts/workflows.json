@@ -1,0 +1,795 @@
+[
+  {
+    "user": "Trace Beam's automated scribe for community care workers. A service user meets with a social worker and gives consent to recording. The social worker reviews the consent reminder and clicks record (and may stop or cancel recording at any time). An AI scribe transcribes the meeting and produces meeting notes. The social worker reviews the notes and either accepts them (saved to the management system) or rejects them. On reject, they can manually edit, edit with AI, change the template, or add more audio to process; all of these loop back to refine the meeting notes.",
+    "assistant": {
+      "process_name": "Beam Automated Scribe for Community Care Worker",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Meeting Begins" },
+        { "id": "service_user", "type": "humanSource", "name": "Service User" },
+        { "id": "meeting", "type": "userTask", "name": "Meeting with Social Worker" },
+        { "id": "consent", "type": "governanceMechanism", "name": "Service User Gives Consent" },
+        { "id": "social_worker", "type": "humanSource", "name": "Social Worker Reviews Consent + Clicks Record" },
+        { "id": "stop_cancel", "type": "reject", "name": "Stop or Cancel Recording" },
+        { "id": "scribe_model", "type": "fixedAIModel", "name": "AI Scribe (Transcribe + Summarize)" },
+        { "id": "meeting_notes", "type": "inputOutput", "name": "Meeting Notes" },
+        { "id": "review", "type": "decisionPoint", "name": "Social Worker Review" },
+        { "id": "accept_notes", "type": "accept", "name": "Accept" },
+        { "id": "reject_notes", "type": "reject", "name": "Reject" },
+        { "id": "manual_edit", "type": "modify", "name": "Manual Edit" },
+        { "id": "edit_with_ai", "type": "modify", "name": "Edit with AI" },
+        { "id": "change_template", "type": "modify", "name": "Change Template" },
+        { "id": "add_audio", "type": "modify", "name": "Add More Audio" },
+        { "id": "edit_ai_model", "type": "fixedAIModel", "name": "AI Edit Model" },
+        { "id": "template_ai_model", "type": "fixedAIModel", "name": "AI Template Model" },
+        { "id": "notes_saved", "type": "finalOutcome", "name": "Notes Saved to Management System" },
+        { "id": "recording_cancelled", "type": "finalOutcome", "name": "Recording Cancelled" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "service_user" },
+        { "id": "flow_2", "from": "service_user", "to": "meeting" },
+        { "id": "flow_3", "from": "meeting", "to": "consent" },
+        { "id": "flow_4", "from": "consent", "to": "social_worker" },
+        { "id": "flow_5", "from": "social_worker", "to": "scribe_model", "name": "Record" },
+        { "id": "flow_6", "from": "social_worker", "to": "stop_cancel", "name": "Cancel" },
+        { "id": "flow_7", "from": "stop_cancel", "to": "recording_cancelled" },
+        { "id": "flow_8", "from": "scribe_model", "to": "meeting_notes" },
+        { "id": "flow_9", "from": "meeting_notes", "to": "review" },
+        { "id": "flow_10", "from": "review", "to": "accept_notes", "name": "Accept" },
+        { "id": "flow_11", "from": "review", "to": "reject_notes", "name": "Reject" },
+        { "id": "flow_12", "from": "accept_notes", "to": "notes_saved" },
+        { "id": "flow_13", "from": "reject_notes", "to": "manual_edit" },
+        { "id": "flow_14", "from": "reject_notes", "to": "edit_with_ai" },
+        { "id": "flow_15", "from": "reject_notes", "to": "change_template" },
+        { "id": "flow_16", "from": "reject_notes", "to": "add_audio" },
+        { "id": "flow_17", "from": "manual_edit", "to": "meeting_notes" },
+        { "id": "flow_18", "from": "edit_with_ai", "to": "edit_ai_model" },
+        { "id": "flow_19", "from": "edit_ai_model", "to": "meeting_notes" },
+        { "id": "flow_20", "from": "change_template", "to": "template_ai_model" },
+        { "id": "flow_21", "from": "template_ai_model", "to": "meeting_notes" },
+        { "id": "flow_22", "from": "add_audio", "to": "scribe_model" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Civic AI's casework triage tool. A congressional caseworker receives constituent communications (emails, voice mails, physical mail, webforms, in-person). A Casework Identifying AI surfaces and redirects each piece to the appropriate inbox. A second Casework AI System produces an associated agency, possible contacts, a tiered tagging system, a proposed response, and identifies missing documentation. A staffer adds an internal point of contact. A message is sent to the agency or constituent. When a response is received, the AI reads it and proposes a next step. A human checks and approves, modifies, or sends; the case is closed and reporting metrics are derived from closed cases.",
+    "assistant": {
+      "process_name": "Civic AI Casework Triage",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Casework Received" },
+        { "id": "caseworker", "type": "humanSource", "name": "Congressional Caseworker" },
+        { "id": "intake", "type": "inputOutput", "name": "Emails, Voice Mails, Mail, Webforms, In-Person" },
+        { "id": "identifying_ai", "type": "fixedAIModel", "name": "Casework Identifying AI" },
+        { "id": "routed_inbox", "type": "inputOutput", "name": "Casework Routed to Appropriate Inbox" },
+        { "id": "casework_ai", "type": "fixedAIModel", "name": "Casework AI System" },
+        { "id": "ai_outputs", "type": "inputOutput", "name": "Agency, Contacts, Tags, Proposed Response" },
+        { "id": "staffer", "type": "humanSource", "name": "Staffer Adds Internal Point of Contact" },
+        { "id": "message_sent", "type": "inputOutput", "name": "Message Sent to Agency or Constituent" },
+        { "id": "response_received", "type": "inputOutput", "name": "Agency or Constituent Response Received" },
+        { "id": "next_step_ai", "type": "fixedAIModel", "name": "Casework AI Proposes Next Step" },
+        { "id": "approval", "type": "decisionPoint", "name": "Response Checked and Approved" },
+        { "id": "accept_response", "type": "accept", "name": "Accept" },
+        { "id": "modify_response", "type": "modify", "name": "Modify" },
+        { "id": "response_to_constituent", "type": "inputOutput", "name": "Response Sent to Agency / Constituent" },
+        { "id": "case_closed", "type": "finalOutcome", "name": "Case Closed / Completed" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "caseworker" },
+        { "id": "flow_2", "from": "caseworker", "to": "intake" },
+        { "id": "flow_3", "from": "intake", "to": "identifying_ai" },
+        { "id": "flow_4", "from": "identifying_ai", "to": "routed_inbox" },
+        { "id": "flow_5", "from": "routed_inbox", "to": "casework_ai" },
+        { "id": "flow_6", "from": "routed_inbox", "to": "staffer" },
+        { "id": "flow_7", "from": "casework_ai", "to": "ai_outputs" },
+        { "id": "flow_8", "from": "ai_outputs", "to": "message_sent" },
+        { "id": "flow_9", "from": "staffer", "to": "message_sent" },
+        { "id": "flow_10", "from": "message_sent", "to": "response_received" },
+        { "id": "flow_11", "from": "response_received", "to": "next_step_ai" },
+        { "id": "flow_12", "from": "next_step_ai", "to": "approval" },
+        { "id": "flow_13", "from": "approval", "to": "accept_response", "name": "Accept" },
+        { "id": "flow_14", "from": "approval", "to": "modify_response", "name": "Modify" },
+        { "id": "flow_15", "from": "accept_response", "to": "response_to_constituent" },
+        { "id": "flow_16", "from": "modify_response", "to": "response_to_constituent" },
+        { "id": "flow_17", "from": "response_to_constituent", "to": "case_closed" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Civic AI's congressional correspondence drafting tool. A junior congressional staffer receives correspondence (emails, voice mails, mail, CWC, webforms, in-person). An automatic AI tagging system surfaces possible threats, first correspondence, frequent flyers, and Do Not Mail status. A second AI tagging step produces associated batches, while a staffer provides policy stance, reroutes, direct response, or task assignment. The message is redirected to batches and an email response generator drafts a reply. The drafted email is checked: accept or modify, then routed for the office's internal approval.",
+    "assistant": {
+      "process_name": "Civic AI Congressional Correspondence",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Correspondence Received" },
+        { "id": "junior_staff", "type": "humanSource", "name": "Junior Congressional Staff" },
+        { "id": "intake", "type": "inputOutput", "name": "Emails, Voice Mails, Mail, CWC, Webforms, In-Person" },
+        { "id": "tag_ai_1", "type": "fixedAIModel", "name": "Automatic AI Tagging" },
+        { "id": "surfaced", "type": "inputOutput", "name": "Threat / First Correspondence / Frequent Flyer / Do Not Mail" },
+        { "id": "tag_ai_2", "type": "fixedAIModel", "name": "Automatic AI Tagging (Batches)" },
+        { "id": "batches", "type": "inputOutput", "name": "Associated Batch(es)" },
+        { "id": "staffer", "type": "humanSource", "name": "Staffer: Policy Stance / Reroute / Direct Response / Assign Task" },
+        { "id": "redirected", "type": "inputOutput", "name": "Message Redirected to Batches" },
+        { "id": "email_gen", "type": "fixedAIModel", "name": "Email Response Generator" },
+        { "id": "drafted_email", "type": "inputOutput", "name": "Drafted Email Response" },
+        { "id": "response_checked", "type": "decisionPoint", "name": "Response Checked" },
+        { "id": "accept_email", "type": "accept", "name": "Accept" },
+        { "id": "modify_email", "type": "modify", "name": "Modify" },
+        { "id": "internal_approval", "type": "finalOutcome", "name": "Routed for Office Internal Approval" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "junior_staff" },
+        { "id": "flow_2", "from": "junior_staff", "to": "intake" },
+        { "id": "flow_3", "from": "intake", "to": "tag_ai_1" },
+        { "id": "flow_4", "from": "tag_ai_1", "to": "surfaced" },
+        { "id": "flow_5", "from": "surfaced", "to": "tag_ai_2" },
+        { "id": "flow_6", "from": "surfaced", "to": "staffer" },
+        { "id": "flow_7", "from": "tag_ai_2", "to": "batches" },
+        { "id": "flow_8", "from": "batches", "to": "redirected" },
+        { "id": "flow_9", "from": "staffer", "to": "redirected" },
+        { "id": "flow_10", "from": "redirected", "to": "email_gen" },
+        { "id": "flow_11", "from": "email_gen", "to": "drafted_email" },
+        { "id": "flow_12", "from": "drafted_email", "to": "response_checked" },
+        { "id": "flow_13", "from": "response_checked", "to": "accept_email", "name": "Accept" },
+        { "id": "flow_14", "from": "response_checked", "to": "modify_email", "name": "Modify" },
+        { "id": "flow_15", "from": "accept_email", "to": "internal_approval" },
+        { "id": "flow_16", "from": "modify_email", "to": "internal_approval" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Civic AI's sentiment analysis for constituent correspondence. A junior congressional staffer's inbox contains emails, voice mails, physical mail, CWC, webforms, and in-person communications. A sentiment model produces a sentiment score on each piece of correspondence. The sentiment is attached to the correspondence and housed on constituent profiles, batches, maps, dashboards, and reporting pages. The sentiment is then used to create outreach and as a proxy for public opinion towards the office.",
+    "assistant": {
+      "process_name": "Civic AI Constituent Sentiment Analysis",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Correspondence Received" },
+        { "id": "junior_staff", "type": "humanSource", "name": "Junior Congressional Staff" },
+        { "id": "inbox", "type": "inputOutput", "name": "Emails, Voice Mails, Mail, CWC, Webforms, In-Person" },
+        { "id": "sentiment_model", "type": "fixedAIModel", "name": "Sentiment Model" },
+        { "id": "sentiment_per_item", "type": "inputOutput", "name": "Sentiment on Each Piece of Correspondence" },
+        { "id": "sentiment_housed", "type": "inputOutput", "name": "Profiles / Batches / Maps / Dashboard / Reports" },
+        { "id": "outreach_outcome", "type": "finalOutcome", "name": "Outreach + Proxy for Public Opinion" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "junior_staff" },
+        { "id": "flow_2", "from": "junior_staff", "to": "inbox" },
+        { "id": "flow_3", "from": "inbox", "to": "sentiment_model" },
+        { "id": "flow_4", "from": "sentiment_model", "to": "sentiment_per_item" },
+        { "id": "flow_5", "from": "sentiment_per_item", "to": "sentiment_housed" },
+        { "id": "flow_6", "from": "sentiment_housed", "to": "outreach_outcome" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Civic AI's social media drafting tool. A congressional comms director chooses a social media platform (Twitter, Instagram, Facebook, LinkedIn, etc.). A social media drafting AI surfaces a drafted post with the correct word count, hashtags, and context. The draft is checked: accept or modify, and then the post is routed for the office's internal approval.",
+    "assistant": {
+      "process_name": "Civic AI Social Media Drafting",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Drafting Requested" },
+        { "id": "comms_director", "type": "humanSource", "name": "Congressional Comms Director" },
+        { "id": "platform_choice", "type": "inputOutput", "name": "Selected Platform: Twitter / Instagram / Facebook / LinkedIn" },
+        { "id": "drafting_ai", "type": "fixedAIModel", "name": "Social Media Drafting AI" },
+        { "id": "drafted_post", "type": "inputOutput", "name": "Drafted Post (Word Count, Hashtags, Context)" },
+        { "id": "draft_checked", "type": "decisionPoint", "name": "Draft Checked" },
+        { "id": "accept_post", "type": "accept", "name": "Accept" },
+        { "id": "modify_post", "type": "modify", "name": "Modify" },
+        { "id": "internal_approval", "type": "finalOutcome", "name": "Routed for Office Internal Approval" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "comms_director" },
+        { "id": "flow_2", "from": "comms_director", "to": "platform_choice" },
+        { "id": "flow_3", "from": "platform_choice", "to": "drafting_ai" },
+        { "id": "flow_4", "from": "drafting_ai", "to": "drafted_post" },
+        { "id": "flow_5", "from": "drafted_post", "to": "draft_checked" },
+        { "id": "flow_6", "from": "draft_checked", "to": "accept_post", "name": "Accept" },
+        { "id": "flow_7", "from": "draft_checked", "to": "modify_post", "name": "Modify" },
+        { "id": "flow_8", "from": "accept_post", "to": "internal_approval" },
+        { "id": "flow_9", "from": "modify_post", "to": "internal_approval" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Claim's Generative Engine Optimization tool that produces LLM-friendly webpage content. A marketing executive starts with the brand's website. An LLM creates content for the brand's website tailored for generative AI engines. The marketing executive does an initial check: if true, the webpage is updated and then goes to a final approval; if false, the content goes straight to approval. The approval step has modify or accept branches; both lead to a manual correction and update step.",
+    "assistant": {
+      "process_name": "Claim Generative Engine Optimization for Webpages",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "GEO Drafting Begins" },
+        { "id": "marketing_exec", "type": "humanSource", "name": "Marketing Executive" },
+        { "id": "brand_site", "type": "inputOutput", "name": "Brand's Website" },
+        { "id": "llm_writer", "type": "fixedAIModel", "name": "LLM Content Creation for Website" },
+        { "id": "geo_content", "type": "inputOutput", "name": "Content for Generative AI Engines" },
+        { "id": "exec_check", "type": "decisionPoint", "name": "Marketing Executive Check" },
+        { "id": "check_pass", "type": "accept", "name": "True" },
+        { "id": "check_fail", "type": "reject", "name": "False" },
+        { "id": "webpage_updated", "type": "inputOutput", "name": "Webpage Updated" },
+        { "id": "approval", "type": "decisionPoint", "name": "Approval" },
+        { "id": "approve_modify", "type": "modify", "name": "Modify" },
+        { "id": "approve_accept", "type": "accept", "name": "Accept" },
+        { "id": "manual_update", "type": "finalOutcome", "name": "Manual Correction and Update" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "marketing_exec" },
+        { "id": "flow_2", "from": "marketing_exec", "to": "brand_site" },
+        { "id": "flow_3", "from": "brand_site", "to": "llm_writer" },
+        { "id": "flow_4", "from": "llm_writer", "to": "geo_content" },
+        { "id": "flow_5", "from": "geo_content", "to": "exec_check" },
+        { "id": "flow_6", "from": "exec_check", "to": "check_pass", "name": "True" },
+        { "id": "flow_7", "from": "exec_check", "to": "check_fail", "name": "False" },
+        { "id": "flow_8", "from": "check_pass", "to": "webpage_updated" },
+        { "id": "flow_9", "from": "webpage_updated", "to": "approval" },
+        { "id": "flow_10", "from": "check_fail", "to": "approval" },
+        { "id": "flow_11", "from": "approval", "to": "approve_modify", "name": "Modify" },
+        { "id": "flow_12", "from": "approval", "to": "approve_accept", "name": "Accept" },
+        { "id": "flow_13", "from": "approve_modify", "to": "manual_update" },
+        { "id": "flow_14", "from": "approve_accept", "to": "manual_update" }
+      ]
+    }
+  },
+  {
+    "user": "Trace CrowdAI's automated identification of dented cans on a manufacturing line. A manufacturing analyst reviews a video feed from the manufacturing line. An AI model identifies dented cans and produces a timestamp and location for each detection. A human check decides: if true, the software UI is updated and then a line approval step runs; if false, the detection goes straight to line approval. Line approval has modify or accept branches; both lead to training data being updated with edge examples.",
+    "assistant": {
+      "process_name": "CrowdAI Dented Can Identification",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Line Inspection Begins" },
+        { "id": "analyst", "type": "humanSource", "name": "Manufacturing Analyst" },
+        { "id": "video_feed", "type": "inputOutput", "name": "Video Feed on Manufacturing Line" },
+        { "id": "detector", "type": "fixedAIModel", "name": "Identification of Dented Cans" },
+        { "id": "detections", "type": "inputOutput", "name": "Timestamp + Location of Dented Cans" },
+        { "id": "human_check", "type": "decisionPoint", "name": "Human Check" },
+        { "id": "check_true", "type": "accept", "name": "True" },
+        { "id": "check_false", "type": "reject", "name": "False" },
+        { "id": "ui_update", "type": "inputOutput", "name": "Software UI Update" },
+        { "id": "line_approval", "type": "decisionPoint", "name": "Line Approval" },
+        { "id": "line_modify", "type": "modify", "name": "Modify" },
+        { "id": "line_accept", "type": "accept", "name": "Accept" },
+        { "id": "training_updated", "type": "finalOutcome", "name": "Training Data Updated with Edge Examples" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "analyst" },
+        { "id": "flow_2", "from": "analyst", "to": "video_feed" },
+        { "id": "flow_3", "from": "video_feed", "to": "detector" },
+        { "id": "flow_4", "from": "detector", "to": "detections" },
+        { "id": "flow_5", "from": "detections", "to": "human_check" },
+        { "id": "flow_6", "from": "human_check", "to": "check_true", "name": "True" },
+        { "id": "flow_7", "from": "human_check", "to": "check_false", "name": "False" },
+        { "id": "flow_8", "from": "check_true", "to": "ui_update" },
+        { "id": "flow_9", "from": "ui_update", "to": "line_approval" },
+        { "id": "flow_10", "from": "check_false", "to": "line_approval" },
+        { "id": "flow_11", "from": "line_approval", "to": "line_modify", "name": "Modify" },
+        { "id": "flow_12", "from": "line_approval", "to": "line_accept", "name": "Accept" },
+        { "id": "flow_13", "from": "line_modify", "to": "training_updated" },
+        { "id": "flow_14", "from": "line_accept", "to": "training_updated" }
+      ]
+    }
+  },
+  {
+    "user": "Trace CrowdAI's fireline spot fire identification tool. A firefighter or analyst reviews aerial fire footage. An AI model performs fireline GPS location confirmation using the location of aerial flights and produces an automated GPS location of the fireline. A human check decides: if true, a software UI update is pushed to firefighters on GPS location and goes to firefighter approval; if false, it goes straight to firefighter approval. Firefighter approval has modify or accept branches; both lead to training data being updated with the edge example.",
+    "assistant": {
+      "process_name": "CrowdAI Fireline Spot Fire Identification",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Aerial Footage Captured" },
+        { "id": "firefighter", "type": "humanSource", "name": "Firefighter / Analyst" },
+        { "id": "aerial_footage", "type": "inputOutput", "name": "Aerial Fire Footage" },
+        { "id": "fireline_model", "type": "fixedAIModel", "name": "Fireline GPS Location Confirmation" },
+        { "id": "gps_location", "type": "inputOutput", "name": "Automated GPS Location of Fireline" },
+        { "id": "human_check", "type": "decisionPoint", "name": "Human Check" },
+        { "id": "check_true", "type": "accept", "name": "True" },
+        { "id": "check_false", "type": "reject", "name": "False" },
+        { "id": "ui_push", "type": "inputOutput", "name": "Software UI Update Pushed to Firefighters" },
+        { "id": "firefighter_approval", "type": "decisionPoint", "name": "Firefighter Approval" },
+        { "id": "approval_modify", "type": "modify", "name": "Modify" },
+        { "id": "approval_accept", "type": "accept", "name": "Accept" },
+        { "id": "training_updated", "type": "finalOutcome", "name": "Training Data Updated with Edge Example" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "firefighter" },
+        { "id": "flow_2", "from": "firefighter", "to": "aerial_footage" },
+        { "id": "flow_3", "from": "aerial_footage", "to": "fireline_model" },
+        { "id": "flow_4", "from": "fireline_model", "to": "gps_location" },
+        { "id": "flow_5", "from": "gps_location", "to": "human_check" },
+        { "id": "flow_6", "from": "human_check", "to": "check_true", "name": "True" },
+        { "id": "flow_7", "from": "human_check", "to": "check_false", "name": "False" },
+        { "id": "flow_8", "from": "check_true", "to": "ui_push" },
+        { "id": "flow_9", "from": "ui_push", "to": "firefighter_approval" },
+        { "id": "flow_10", "from": "check_false", "to": "firefighter_approval" },
+        { "id": "flow_11", "from": "firefighter_approval", "to": "approval_modify", "name": "Modify" },
+        { "id": "flow_12", "from": "firefighter_approval", "to": "approval_accept", "name": "Accept" },
+        { "id": "flow_13", "from": "approval_modify", "to": "training_updated" },
+        { "id": "flow_14", "from": "approval_accept", "to": "training_updated" }
+      ]
+    }
+  },
+  {
+    "user": "Trace the Indian Railway expenditure agent. A user submits PDFs including a purchase order, receipt note, invoice, and inspection certificate. An OCR + finance logic model produces a drafted finance note or return note. A finance officer reviews and either accepts or modifies; both lead to the final finance note or return note being issued.",
+    "assistant": {
+      "process_name": "Indian Railway Expenditure Agent",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Expenditure Submission" },
+        { "id": "user", "type": "humanSource", "name": "User" },
+        { "id": "documents", "type": "inputOutput", "name": "PDFs: Purchase Order, Receipt Note, Invoice, Inspection Certificate" },
+        { "id": "ocr_finance", "type": "fixedAIModel", "name": "OCR + Finance Logic" },
+        { "id": "drafted_note", "type": "inputOutput", "name": "Drafted Finance / Return Note" },
+        { "id": "officer_review", "type": "decisionPoint", "name": "Finance Officer Review" },
+        { "id": "accept_note", "type": "accept", "name": "Accept" },
+        { "id": "modify_note", "type": "modify", "name": "Modify" },
+        { "id": "final_note", "type": "finalOutcome", "name": "Finance Note / Return Note" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "user" },
+        { "id": "flow_2", "from": "user", "to": "documents" },
+        { "id": "flow_3", "from": "documents", "to": "ocr_finance" },
+        { "id": "flow_4", "from": "ocr_finance", "to": "drafted_note" },
+        { "id": "flow_5", "from": "drafted_note", "to": "officer_review" },
+        { "id": "flow_6", "from": "officer_review", "to": "accept_note", "name": "Accept" },
+        { "id": "flow_7", "from": "officer_review", "to": "modify_note", "name": "Modify" },
+        { "id": "flow_8", "from": "accept_note", "to": "final_note" },
+        { "id": "flow_9", "from": "modify_note", "to": "final_note" }
+      ]
+    }
+  },
+  {
+    "user": "Trace the Indian Railway smart AI assistant. A field unit user submits task compliance reports, CAPEX-OPEX reports, earnings reports, audit reports, and governance reports. A data integration, trend, and anomaly detection model produces conversational briefings with risk alerts. A finance officer reviews and either accepts or modifies; both result in a task being created.",
+    "assistant": {
+      "process_name": "Indian Railway Smart AI Assistant",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Reports Submitted" },
+        { "id": "field_unit", "type": "humanSource", "name": "User (Field Unit)" },
+        { "id": "reports", "type": "inputOutput", "name": "Task Compliance / CAPEX-OPEX / Earnings / Audit / Governance Reports" },
+        { "id": "anomaly_model", "type": "fixedAIModel", "name": "Data Integration, Trend + Anomaly Detection" },
+        { "id": "briefings", "type": "inputOutput", "name": "Conversational Briefings - Risk Alerts" },
+        { "id": "officer_review", "type": "decisionPoint", "name": "Finance Officer Review" },
+        { "id": "accept_brief", "type": "accept", "name": "Accept" },
+        { "id": "modify_brief", "type": "modify", "name": "Modify" },
+        { "id": "task_created", "type": "finalOutcome", "name": "Task Created" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "field_unit" },
+        { "id": "flow_2", "from": "field_unit", "to": "reports" },
+        { "id": "flow_3", "from": "reports", "to": "anomaly_model" },
+        { "id": "flow_4", "from": "anomaly_model", "to": "briefings" },
+        { "id": "flow_5", "from": "briefings", "to": "officer_review" },
+        { "id": "flow_6", "from": "officer_review", "to": "accept_brief", "name": "Accept" },
+        { "id": "flow_7", "from": "officer_review", "to": "modify_brief", "name": "Modify" },
+        { "id": "flow_8", "from": "accept_brief", "to": "task_created" },
+        { "id": "flow_9", "from": "modify_brief", "to": "task_created" }
+      ]
+    }
+  },
+  {
+    "user": "Trace KyklosTech's guideline-integrated decision engine for health. A patient supplies treatment preferences. The model also takes the patient's medical history and EHR, ICD database + clinical practice guidelines, and a medication database and research literature as inputs. An AI ranks treatment options. A clinician reviews (human check) and either accepts/manually adjusts the plan, or modifies the plan by adjusting inputs (which loops back to the ranker). Once a recommended treatment option is reached, an explainability model produces a patient-facing explanation, which is shown via a chatbot UI where the patient can ask questions, and finally the treatment process is formally documented in the medical record.",
+    "assistant": {
+      "process_name": "KyklosTech Guideline-Integrated Decision Engine",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Decision Support Begins" },
+        { "id": "patient", "type": "humanSource", "name": "Patient" },
+        { "id": "preferences", "type": "inputOutput", "name": "Patient's Treatment Preferences" },
+        { "id": "medical_history", "type": "inputOutput", "name": "Medical History + EHR" },
+        { "id": "guidelines", "type": "inputOutput", "name": "ICD Database + Clinical Practice Guidelines" },
+        { "id": "med_literature", "type": "inputOutput", "name": "Medication Database + Research Literature" },
+        { "id": "ranking_model", "type": "fixedAIModel", "name": "Treatment Ranking Model" },
+        { "id": "ranked_options", "type": "inputOutput", "name": "Ranking of Treatment Options" },
+        { "id": "clinician_review", "type": "decisionPoint", "name": "Clinician Review (Human Check)" },
+        { "id": "accept_plan", "type": "accept", "name": "Accept / Manually Adjust Plan" },
+        { "id": "modify_plan", "type": "modify", "name": "Modify Plan by Adjusting Inputs" },
+        { "id": "recommended_plan", "type": "inputOutput", "name": "Recommended Treatment Option" },
+        { "id": "explain_model", "type": "fixedAIModel", "name": "Explainability Model" },
+        { "id": "explanation", "type": "inputOutput", "name": "Interpretable Explanation of Decision" },
+        { "id": "chatbot_ui", "type": "ui", "name": "Chatbot Q&A on Treatment Plan" },
+        { "id": "documented", "type": "finalOutcome", "name": "Formal Documentation in Medical Record" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "patient" },
+        { "id": "flow_2", "from": "patient", "to": "preferences" },
+        { "id": "flow_3", "from": "preferences", "to": "ranking_model" },
+        { "id": "flow_4", "from": "medical_history", "to": "ranking_model" },
+        { "id": "flow_5", "from": "guidelines", "to": "ranking_model" },
+        { "id": "flow_6", "from": "med_literature", "to": "ranking_model" },
+        { "id": "flow_7", "from": "patient", "to": "medical_history" },
+        { "id": "flow_8", "from": "patient", "to": "guidelines" },
+        { "id": "flow_9", "from": "patient", "to": "med_literature" },
+        { "id": "flow_10", "from": "ranking_model", "to": "ranked_options" },
+        { "id": "flow_11", "from": "ranked_options", "to": "clinician_review" },
+        { "id": "flow_12", "from": "clinician_review", "to": "accept_plan", "name": "Accept" },
+        { "id": "flow_13", "from": "clinician_review", "to": "modify_plan", "name": "Modify" },
+        { "id": "flow_14", "from": "modify_plan", "to": "ranking_model" },
+        { "id": "flow_15", "from": "accept_plan", "to": "recommended_plan" },
+        { "id": "flow_16", "from": "recommended_plan", "to": "explain_model" },
+        { "id": "flow_17", "from": "explain_model", "to": "explanation" },
+        { "id": "flow_18", "from": "explanation", "to": "chatbot_ui" },
+        { "id": "flow_19", "from": "chatbot_ui", "to": "documented" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Laurettaio's video anomaly detector. A user maintains an events knowledge base, and video streams come in. A first AI model uses both to produce a candidate anomaly sequence. A second AI model produces an anomaly result. A human review decides: anomalous scene becomes a true alert, leading to take action; normal scene becomes a false alarm, which is fed to a third AI model that proposes new rules; an admin reviews and updates the events knowledge base.",
+    "assistant": {
+      "process_name": "Laurettaio Video Anomaly Detector",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Stream Started" },
+        { "id": "user", "type": "humanSource", "name": "User" },
+        { "id": "knowledge_base", "type": "inputOutput", "name": "Events Knowledge Base" },
+        { "id": "video_streams", "type": "inputOutput", "name": "Video Streams" },
+        { "id": "anomaly_model_1", "type": "fixedAIModel", "name": "Candidate Anomaly Detection" },
+        { "id": "candidate_sequence", "type": "inputOutput", "name": "Candidate Anomaly Sequence" },
+        { "id": "anomaly_model_2", "type": "fixedAIModel", "name": "Anomaly Classifier" },
+        { "id": "anomaly_result", "type": "inputOutput", "name": "Anomaly Result" },
+        { "id": "human_review", "type": "decisionPoint", "name": "Human Review" },
+        { "id": "true_alert", "type": "accept", "name": "True Alert (Anomalous Scene)" },
+        { "id": "false_alarm", "type": "reject", "name": "False Alarm (Normal Scene)" },
+        { "id": "rule_model", "type": "fixedAIModel", "name": "Rule Proposal Model" },
+        { "id": "proposed_rules", "type": "inputOutput", "name": "Proposed Rules" },
+        { "id": "admin_review", "type": "decisionPoint", "name": "Admin Review" },
+        { "id": "update_kb", "type": "modify", "name": "Update Knowledge Base" },
+        { "id": "take_action", "type": "finalOutcome", "name": "Take Action" },
+        { "id": "kb_updated", "type": "finalOutcome", "name": "Knowledge Base Updated" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "user" },
+        { "id": "flow_2", "from": "user", "to": "knowledge_base" },
+        { "id": "flow_3", "from": "user", "to": "video_streams" },
+        { "id": "flow_4", "from": "knowledge_base", "to": "anomaly_model_1" },
+        { "id": "flow_5", "from": "video_streams", "to": "anomaly_model_1" },
+        { "id": "flow_6", "from": "anomaly_model_1", "to": "candidate_sequence" },
+        { "id": "flow_7", "from": "candidate_sequence", "to": "anomaly_model_2" },
+        { "id": "flow_8", "from": "anomaly_model_2", "to": "anomaly_result" },
+        { "id": "flow_9", "from": "anomaly_result", "to": "human_review" },
+        { "id": "flow_10", "from": "human_review", "to": "true_alert", "name": "Anomalous Scene" },
+        { "id": "flow_11", "from": "human_review", "to": "false_alarm", "name": "Normal Scene" },
+        { "id": "flow_12", "from": "true_alert", "to": "take_action" },
+        { "id": "flow_13", "from": "false_alarm", "to": "rule_model" },
+        { "id": "flow_14", "from": "rule_model", "to": "proposed_rules" },
+        { "id": "flow_15", "from": "proposed_rules", "to": "admin_review" },
+        { "id": "flow_16", "from": "admin_review", "to": "update_kb", "name": "Update" },
+        { "id": "flow_17", "from": "update_kb", "to": "kb_updated" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Mastercard's transaction risk monitoring. During model development, AI governance and data governance with cardholder consent are established. At run-time, a cardholder initiates a transaction; transaction data feeds a real-time AI model with model guardrails that can trigger a reject. The model produces a risk score and reason code, surfaced through a UI to financial institutions (banks, issuers, acquirers). A card issuer model combines other data inputs and the risk score, then a card issuer governance step (alert disposition) decides accept or reject.",
+    "assistant": {
+      "process_name": "Mastercard Transaction Risk Monitoring",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Transaction Initiated" },
+        { "id": "model_dev", "type": "fixedAIModel", "name": "Model Development" },
+        { "id": "ai_governance", "type": "governanceMechanism", "name": "AI Governance" },
+        { "id": "data_governance", "type": "governanceMechanism", "name": "Data Governance + Cardholder Consent" },
+        { "id": "cardholder", "type": "humanSource", "name": "Cardholder" },
+        { "id": "txn_data", "type": "inputOutput", "name": "Transaction Data" },
+        { "id": "risk_model", "type": "fixedAIModel", "name": "Real-Time Risk Model" },
+        { "id": "guardrails", "type": "governanceMechanism", "name": "Model Guardrails Trigger at Run-Time" },
+        { "id": "guardrail_check", "type": "decisionPoint", "name": "Guardrail Check" },
+        { "id": "guardrail_reject", "type": "reject", "name": "Reject (Guardrail Trigger)" },
+        { "id": "risk_score", "type": "inputOutput", "name": "Risk Score + Reason Code" },
+        { "id": "fi_ui", "type": "ui", "name": "Financial Institution UI" },
+        { "id": "fi_review", "type": "humanSource", "name": "Financial Institutions (Banks, Issuers, Acquirers)" },
+        { "id": "issuer_model", "type": "fixedAIModel", "name": "Card Issuer Model" },
+        { "id": "other_inputs", "type": "inputOutput", "name": "Other Data Inputs" },
+        { "id": "issuer_governance", "type": "decisionPoint", "name": "Card Issuer Governance (Alert Disposition)" },
+        { "id": "txn_accept", "type": "accept", "name": "Accept" },
+        { "id": "txn_reject", "type": "reject", "name": "Reject" },
+        { "id": "txn_authorized", "type": "finalOutcome", "name": "Transaction Authorized" },
+        { "id": "txn_declined", "type": "finalOutcome", "name": "Transaction Declined" },
+        { "id": "guardrail_blocked", "type": "finalOutcome", "name": "Transaction Blocked at Run-Time" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "model_dev" },
+        { "id": "flow_2", "from": "model_dev", "to": "ai_governance" },
+        { "id": "flow_3", "from": "ai_governance", "to": "data_governance" },
+        { "id": "flow_4", "from": "data_governance", "to": "risk_model" },
+        { "id": "flow_5", "from": "cardholder", "to": "txn_data" },
+        { "id": "flow_6", "from": "txn_data", "to": "risk_model" },
+        { "id": "flow_7", "from": "risk_model", "to": "guardrails" },
+        { "id": "flow_8", "from": "guardrails", "to": "guardrail_check" },
+        { "id": "flow_9", "from": "guardrail_check", "to": "guardrail_reject", "name": "Trigger" },
+        { "id": "flow_10", "from": "guardrail_check", "to": "risk_score", "name": "Pass" },
+        { "id": "flow_11", "from": "guardrail_reject", "to": "guardrail_blocked" },
+        { "id": "flow_12", "from": "risk_score", "to": "fi_ui" },
+        { "id": "flow_13", "from": "fi_ui", "to": "fi_review" },
+        { "id": "flow_14", "from": "fi_review", "to": "issuer_model" },
+        { "id": "flow_15", "from": "other_inputs", "to": "issuer_model" },
+        { "id": "flow_16", "from": "issuer_model", "to": "issuer_governance" },
+        { "id": "flow_17", "from": "issuer_governance", "to": "txn_accept", "name": "Accept" },
+        { "id": "flow_18", "from": "issuer_governance", "to": "txn_reject", "name": "Reject" },
+        { "id": "flow_19", "from": "txn_accept", "to": "txn_authorized" },
+        { "id": "flow_20", "from": "txn_reject", "to": "txn_declined" },
+        { "id": "flow_21", "from": "model_dev", "to": "cardholder" },
+        { "id": "flow_22", "from": "model_dev", "to": "other_inputs" }
+      ]
+    }
+  },
+  {
+    "user": "Trace the NHS automated medical triage system (excludes patients under 16 and home visits). A patient submits a triage request via phone call/walk-in (receptionists fill in triage), online form, or NHS App. An AI model with patient consent and clinician-defined safety parameters (high-risk prioritisation, sepsis/cancer red flags) decides whether an appointment is needed. If false, the patient is signposted to external services or asked to go to A+E. If true, the system checks whether an appointment is available based on system capacity. If available, an appointment is booked (same-day urgent / routine / F2F / nurse / telephone review). If not, a human-led review (GP practice triage team) defers the appointment.",
+    "assistant": {
+      "process_name": "NHS Automated Medical Triage",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Triage Begins" },
+        { "id": "patient", "type": "humanSource", "name": "Patient" },
+        { "id": "triage_request", "type": "inputOutput", "name": "Submit Triage Request (Phone / Online / NHS App)" },
+        { "id": "consent", "type": "governanceMechanism", "name": "Patient Consent" },
+        { "id": "safety_params", "type": "governanceMechanism", "name": "Clinician-Defined Safety Parameters" },
+        { "id": "triage_model", "type": "fixedAIModel", "name": "Triage AI Model" },
+        { "id": "appt_needed", "type": "decisionPoint", "name": "Appointment Needed?" },
+        { "id": "needed_true", "type": "accept", "name": "True" },
+        { "id": "needed_false", "type": "reject", "name": "False" },
+        { "id": "appt_available", "type": "decisionPoint", "name": "Appointment Available?" },
+        { "id": "available_true", "type": "accept", "name": "True" },
+        { "id": "available_false", "type": "reject", "name": "False" },
+        { "id": "human_review", "type": "humanSource", "name": "Human-Led Review (GP Practice Triage Team)" },
+        { "id": "appt_booked", "type": "finalOutcome", "name": "Appointment Booked" },
+        { "id": "appt_deferred", "type": "finalOutcome", "name": "Appointment Deferred" },
+        { "id": "external_signpost", "type": "finalOutcome", "name": "Signposted to External Services / A+E" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "patient" },
+        { "id": "flow_2", "from": "patient", "to": "triage_request" },
+        { "id": "flow_3", "from": "triage_request", "to": "triage_model" },
+        { "id": "flow_4", "from": "consent", "to": "triage_model" },
+        { "id": "flow_5", "from": "safety_params", "to": "triage_model" },
+        { "id": "flow_6", "from": "patient", "to": "consent" },
+        { "id": "flow_7", "from": "patient", "to": "safety_params" },
+        { "id": "flow_8", "from": "triage_model", "to": "appt_needed" },
+        { "id": "flow_9", "from": "appt_needed", "to": "needed_true", "name": "True" },
+        { "id": "flow_10", "from": "appt_needed", "to": "needed_false", "name": "False" },
+        { "id": "flow_11", "from": "needed_false", "to": "external_signpost" },
+        { "id": "flow_12", "from": "needed_true", "to": "appt_available" },
+        { "id": "flow_13", "from": "appt_available", "to": "available_true", "name": "True" },
+        { "id": "flow_14", "from": "appt_available", "to": "available_false", "name": "False" },
+        { "id": "flow_15", "from": "available_true", "to": "appt_booked" },
+        { "id": "flow_16", "from": "available_false", "to": "human_review" },
+        { "id": "flow_17", "from": "human_review", "to": "appt_deferred" }
+      ]
+    }
+  },
+  {
+    "user": "Trace the NHS automated scribe for clinicians. A patient has a consultation with a doctor; with patient consent, an AI model produces drafted consultation notes. The clinician reviews and either accepts or modifies (reasons: inaccurate transcription or incorrect diagnosis), arriving at the consultation notes. A decision is made on whether a referral is needed. If true, a referral letter is generated. Either way, the clinician approves a final consultation summary (accept or modify).",
+    "assistant": {
+      "process_name": "NHS Automated Scribe for Clinician",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Consultation Begins" },
+        { "id": "patient", "type": "humanSource", "name": "Patient" },
+        { "id": "consultation", "type": "userTask", "name": "Consultation with Doctor" },
+        { "id": "consent", "type": "governanceMechanism", "name": "Patient Consent" },
+        { "id": "scribe_model", "type": "fixedAIModel", "name": "Scribe AI Model" },
+        { "id": "drafted_notes", "type": "inputOutput", "name": "Drafted Consultation Notes" },
+        { "id": "approval_1", "type": "decisionPoint", "name": "Clinician Approval (Notes)" },
+        { "id": "accept_notes", "type": "accept", "name": "Accept" },
+        { "id": "modify_notes", "type": "modify", "name": "Modify (Inaccurate Transcription / Incorrect Diagnosis)" },
+        { "id": "consultation_notes", "type": "inputOutput", "name": "Consultation Notes" },
+        { "id": "referral_needed", "type": "decisionPoint", "name": "Referral Needed?" },
+        { "id": "referral_true", "type": "accept", "name": "True" },
+        { "id": "referral_false", "type": "reject", "name": "False" },
+        { "id": "referral_letter", "type": "inputOutput", "name": "Referral Letter" },
+        { "id": "approval_2", "type": "decisionPoint", "name": "Clinician Approval (Summary)" },
+        { "id": "summary_accept", "type": "accept", "name": "Accept" },
+        { "id": "summary_modify", "type": "modify", "name": "Modify" },
+        { "id": "consultation_summary", "type": "finalOutcome", "name": "Consultation Summary" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "patient" },
+        { "id": "flow_2", "from": "patient", "to": "consultation" },
+        { "id": "flow_3", "from": "consultation", "to": "consent" },
+        { "id": "flow_4", "from": "consent", "to": "scribe_model" },
+        { "id": "flow_5", "from": "scribe_model", "to": "drafted_notes" },
+        { "id": "flow_6", "from": "drafted_notes", "to": "approval_1" },
+        { "id": "flow_7", "from": "approval_1", "to": "accept_notes", "name": "Accept" },
+        { "id": "flow_8", "from": "approval_1", "to": "modify_notes", "name": "Modify" },
+        { "id": "flow_9", "from": "accept_notes", "to": "consultation_notes" },
+        { "id": "flow_10", "from": "modify_notes", "to": "consultation_notes" },
+        { "id": "flow_11", "from": "consultation_notes", "to": "referral_needed" },
+        { "id": "flow_12", "from": "referral_needed", "to": "referral_true", "name": "True" },
+        { "id": "flow_13", "from": "referral_needed", "to": "referral_false", "name": "False" },
+        { "id": "flow_14", "from": "referral_true", "to": "referral_letter" },
+        { "id": "flow_15", "from": "referral_letter", "to": "approval_2" },
+        { "id": "flow_16", "from": "referral_false", "to": "approval_2" },
+        { "id": "flow_17", "from": "approval_2", "to": "summary_accept", "name": "Accept" },
+        { "id": "flow_18", "from": "approval_2", "to": "summary_modify", "name": "Modify" },
+        { "id": "flow_19", "from": "summary_accept", "to": "consultation_summary" },
+        { "id": "flow_20", "from": "summary_modify", "to": "consultation_summary" }
+      ]
+    }
+  },
+  {
+    "user": "Trace the NHS blood test lab report processing tool. A patient's blood test report comes in; the primary care practice chooses which reports can be filed (exclusion criteria set by user). An RPA model checks whether the blood results are within the reference range, based on guidelines and trends. If out of range, a clinician reviews; if pass, it goes straight through. Both paths end with the blood test report being filed and the patient informed.",
+    "assistant": {
+      "process_name": "NHS Blood Test Lab Report Processing",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Blood Test Result Available" },
+        { "id": "patient", "type": "humanSource", "name": "Patient" },
+        { "id": "report", "type": "inputOutput", "name": "Blood Test Report (Filing Criteria Set by Practice)" },
+        { "id": "rpa_model", "type": "fixedAIModel", "name": "RPA Reference Range Check" },
+        { "id": "range_check", "type": "decisionPoint", "name": "Within Reference Range?" },
+        { "id": "out_of_range", "type": "reject", "name": "Out of Range" },
+        { "id": "in_range", "type": "accept", "name": "Pass" },
+        { "id": "clinician_review", "type": "modify", "name": "Clinician Review" },
+        { "id": "filed", "type": "finalOutcome", "name": "Report Filed and Patient Informed" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "patient" },
+        { "id": "flow_2", "from": "patient", "to": "report" },
+        { "id": "flow_3", "from": "report", "to": "rpa_model" },
+        { "id": "flow_4", "from": "rpa_model", "to": "range_check" },
+        { "id": "flow_5", "from": "range_check", "to": "out_of_range", "name": "Out of Range" },
+        { "id": "flow_6", "from": "range_check", "to": "in_range", "name": "Pass" },
+        { "id": "flow_7", "from": "out_of_range", "to": "clinician_review" },
+        { "id": "flow_8", "from": "clinician_review", "to": "filed" },
+        { "id": "flow_9", "from": "in_range", "to": "filed" }
+      ]
+    }
+  },
+  {
+    "user": "Trace the NHS medical bone imaging pathology detection tool (excludes patients under 2). A patient's X-ray image is processed by an AI model that detects fractures or pathologies and produces a generated report. A clinician reviews and either accepts (final imaging report generated) or rejects.",
+    "assistant": {
+      "process_name": "NHS Medical Bone Imaging Pathology Detection",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Imaging Performed" },
+        { "id": "patient", "type": "humanSource", "name": "Patient" },
+        { "id": "xray", "type": "inputOutput", "name": "X-Ray Image" },
+        { "id": "detection_model", "type": "fixedAIModel", "name": "Fracture / Pathology Detection" },
+        { "id": "draft_report", "type": "inputOutput", "name": "Drafted Imaging Report" },
+        { "id": "clinician_review", "type": "decisionPoint", "name": "Clinician Review" },
+        { "id": "accept_report", "type": "accept", "name": "Accept" },
+        { "id": "reject_report", "type": "reject", "name": "Reject" },
+        { "id": "final_report", "type": "finalOutcome", "name": "Final Imaging Report Generated" },
+        { "id": "rejected_outcome", "type": "finalOutcome", "name": "Report Rejected" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "patient" },
+        { "id": "flow_2", "from": "patient", "to": "xray" },
+        { "id": "flow_3", "from": "xray", "to": "detection_model" },
+        { "id": "flow_4", "from": "detection_model", "to": "draft_report" },
+        { "id": "flow_5", "from": "draft_report", "to": "clinician_review" },
+        { "id": "flow_6", "from": "clinician_review", "to": "accept_report", "name": "Accept" },
+        { "id": "flow_7", "from": "clinician_review", "to": "reject_report", "name": "Reject" },
+        { "id": "flow_8", "from": "accept_report", "to": "final_report" },
+        { "id": "flow_9", "from": "reject_report", "to": "rejected_outcome" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Sanome's AI clinical decision support tool. An in-patient's EHR data is fed into an AI model that produces a healthcare-associated infection (HAI) risk score. A clinician reviews the HAI risk score, then makes a clinician decision: action required or no action required. Both branches lead to actions per the hospital care pathway.",
+    "assistant": {
+      "process_name": "Sanome Clinical Decision Support (HAI Risk)",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Admission" },
+        { "id": "in_patient", "type": "humanSource", "name": "In Patient" },
+        { "id": "ehr_data", "type": "inputOutput", "name": "EHR Data" },
+        { "id": "risk_model", "type": "fixedAIModel", "name": "HAI Risk Model" },
+        { "id": "risk_score", "type": "inputOutput", "name": "Healthcare Associated Infection Risk Score" },
+        { "id": "review_ui", "type": "ui", "name": "Clinician Review (HAI Risk Score)" },
+        { "id": "clinician_decision", "type": "decisionPoint", "name": "Clinician Decision" },
+        { "id": "no_action", "type": "modify", "name": "No Action Required" },
+        { "id": "action_required", "type": "accept", "name": "Action Required" },
+        { "id": "care_pathway", "type": "finalOutcome", "name": "Actions per Hospital Care Pathway" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "in_patient" },
+        { "id": "flow_2", "from": "in_patient", "to": "ehr_data" },
+        { "id": "flow_3", "from": "ehr_data", "to": "risk_model" },
+        { "id": "flow_4", "from": "risk_model", "to": "risk_score" },
+        { "id": "flow_5", "from": "risk_score", "to": "review_ui" },
+        { "id": "flow_6", "from": "review_ui", "to": "clinician_decision" },
+        { "id": "flow_7", "from": "clinician_decision", "to": "no_action", "name": "No Action" },
+        { "id": "flow_8", "from": "clinician_decision", "to": "action_required", "name": "Action Required" },
+        { "id": "flow_9", "from": "no_action", "to": "care_pathway" },
+        { "id": "flow_10", "from": "action_required", "to": "care_pathway" }
+      ]
+    }
+  },
+  {
+    "user": "Trace Tortusai's clinical consultation scribe. A patient and clinician have a medical consultation; with patient consent, audio is captured by the Tortus App and passed through an audio quality control system to produce a transcript. The clinician supplies additional context, which goes through LLM context guardrails (accept or reject). The transcript and context feed an AI model with automated safety evals (also feeding internal safety auditing) to produce a medical note. An automated safety suite (with retry via AI) accepts or modifies the note. The clinician then decides if a referral is requested: if true, an AI generates a referral letter (with safety evals); if false, no letter. Clinical artifacts are assembled, and a clinician approval (accept or modify) finalizes them; the finalized artifacts are recorded to the EHR.",
+    "assistant": {
+      "process_name": "Tortusai Clinical Consultation Scribe",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Consultation Begins" },
+        { "id": "patient", "type": "humanSource", "name": "Patient" },
+        { "id": "clinician", "type": "humanSource", "name": "Clinician" },
+        { "id": "consultation", "type": "userTask", "name": "Medical Consultation" },
+        { "id": "consent", "type": "governanceMechanism", "name": "Patient Consent" },
+        { "id": "tortus_app", "type": "ui", "name": "Tortus App" },
+        { "id": "audio_qc", "type": "governanceMechanism", "name": "Audio Quality Control System" },
+        { "id": "transcript", "type": "inputOutput", "name": "Transcript" },
+        { "id": "additional_context", "type": "inputOutput", "name": "Additional Context (Clinician)" },
+        { "id": "context_guardrails", "type": "decisionPoint", "name": "LLM Context Guardrails" },
+        { "id": "context_accept", "type": "accept", "name": "Accept" },
+        { "id": "context_reject", "type": "reject", "name": "Reject" },
+        { "id": "note_model", "type": "fixedAIModel", "name": "Medical Note AI" },
+        { "id": "safety_evals", "type": "governanceMechanism", "name": "Automated Safety Evals" },
+        { "id": "internal_audit", "type": "governanceMechanism", "name": "Internal Safety Auditing" },
+        { "id": "medical_note", "type": "inputOutput", "name": "Medical Note" },
+        { "id": "safety_suite", "type": "decisionPoint", "name": "Automated Safety Suite" },
+        { "id": "safety_accept", "type": "accept", "name": "Accept" },
+        { "id": "safety_modify", "type": "modify", "name": "Modify" },
+        { "id": "safety_ai", "type": "fixedAIModel", "name": "Safety Suite AI Model" },
+        { "id": "referral_decision", "type": "decisionPoint", "name": "Clinician Requests Referral?" },
+        { "id": "referral_true", "type": "accept", "name": "True" },
+        { "id": "referral_false", "type": "reject", "name": "False" },
+        { "id": "referral_ai", "type": "fixedAIModel", "name": "Referral Letter AI" },
+        { "id": "referral_safety", "type": "governanceMechanism", "name": "Automated Safety Evals (Referral)" },
+        { "id": "referral_letter", "type": "inputOutput", "name": "Referral Letter" },
+        { "id": "clinical_artifacts", "type": "inputOutput", "name": "Clinical Artifacts" },
+        { "id": "context_rejected", "type": "finalOutcome", "name": "Context Rejected" },
+        { "id": "clinician_approval", "type": "decisionPoint", "name": "Clinician Approval" },
+        { "id": "approval_accept", "type": "accept", "name": "Accept" },
+        { "id": "approval_modify", "type": "modify", "name": "Modify" },
+        { "id": "finalized", "type": "inputOutput", "name": "Finalized Artifacts" },
+        { "id": "ehr_recorded", "type": "finalOutcome", "name": "Recorded to EHR" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "patient" },
+        { "id": "flow_2", "from": "patient", "to": "consultation" },
+        { "id": "flow_3", "from": "clinician", "to": "consultation" },
+        { "id": "flow_4", "from": "start_1", "to": "clinician" },
+        { "id": "flow_5", "from": "consultation", "to": "consent" },
+        { "id": "flow_6", "from": "consent", "to": "tortus_app" },
+        { "id": "flow_7", "from": "tortus_app", "to": "audio_qc" },
+        { "id": "flow_8", "from": "audio_qc", "to": "transcript" },
+        { "id": "flow_9", "from": "consultation", "to": "additional_context" },
+        { "id": "flow_10", "from": "additional_context", "to": "context_guardrails" },
+        { "id": "flow_11", "from": "context_guardrails", "to": "context_accept", "name": "Accept" },
+        { "id": "flow_12", "from": "context_guardrails", "to": "context_reject", "name": "Reject" },
+        { "id": "flow_13", "from": "context_reject", "to": "context_rejected" },
+        { "id": "flow_14", "from": "transcript", "to": "note_model" },
+        { "id": "flow_15", "from": "context_accept", "to": "note_model" },
+        { "id": "flow_16", "from": "note_model", "to": "safety_evals" },
+        { "id": "flow_17", "from": "safety_evals", "to": "internal_audit" },
+        { "id": "flow_18", "from": "safety_evals", "to": "medical_note" },
+        { "id": "flow_19", "from": "internal_audit", "to": "medical_note" },
+        { "id": "flow_20", "from": "medical_note", "to": "safety_suite" },
+        { "id": "flow_21", "from": "safety_suite", "to": "safety_accept", "name": "Accept" },
+        { "id": "flow_22", "from": "safety_suite", "to": "safety_modify", "name": "Modify" },
+        { "id": "flow_23", "from": "safety_modify", "to": "safety_ai" },
+        { "id": "flow_24", "from": "safety_ai", "to": "referral_decision" },
+        { "id": "flow_25", "from": "safety_accept", "to": "referral_decision" },
+        { "id": "flow_26", "from": "referral_decision", "to": "referral_true", "name": "True" },
+        { "id": "flow_27", "from": "referral_decision", "to": "referral_false", "name": "False" },
+        { "id": "flow_28", "from": "referral_true", "to": "referral_ai" },
+        { "id": "flow_29", "from": "referral_ai", "to": "referral_safety" },
+        { "id": "flow_30", "from": "referral_safety", "to": "referral_letter" },
+        { "id": "flow_31", "from": "referral_letter", "to": "clinical_artifacts" },
+        { "id": "flow_32", "from": "referral_false", "to": "clinical_artifacts" },
+        { "id": "flow_33", "from": "clinical_artifacts", "to": "clinician_approval" },
+        { "id": "flow_34", "from": "clinician_approval", "to": "approval_accept", "name": "Accept" },
+        { "id": "flow_35", "from": "clinician_approval", "to": "approval_modify", "name": "Modify" },
+        { "id": "flow_36", "from": "approval_accept", "to": "finalized" },
+        { "id": "flow_37", "from": "approval_modify", "to": "finalized" },
+        { "id": "flow_38", "from": "finalized", "to": "ehr_recorded" }
+      ]
+    }
+  },
+  {
+    "user": "Trace the USA federal employee award writing workflow. A user supplies an example award/style, the awardee bio, and details of events. A check decides whether the inputs are free from PII or Controlled Unclassified Information. If false, a governance step ensures the LLM is approved by the organization. Either way, a prompt is built to write the award, and an LLM produces a draft. A human review either passes (submit) or fails; on fail, the user modifies via prompting and re-runs the LLM.",
+    "assistant": {
+      "process_name": "USA Federal Employee Award Writing",
+      "elements": [
+        { "id": "start_1", "type": "startEvent", "name": "Award Drafting Requested" },
+        { "id": "user", "type": "humanSource", "name": "User" },
+        { "id": "inputs", "type": "inputOutput", "name": "Example Award, Awardee Bio, Event Details" },
+        { "id": "pii_check", "type": "decisionPoint", "name": "Free from PII / CUI?" },
+        { "id": "pii_true", "type": "accept", "name": "True" },
+        { "id": "pii_false", "type": "reject", "name": "False" },
+        { "id": "ensure_approved", "type": "governanceMechanism", "name": "Ensure LLM Approved by Organization" },
+        { "id": "build_prompt", "type": "inputOutput", "name": "Prompt to Write Award" },
+        { "id": "llm_writer", "type": "fixedAIModel", "name": "LLM Award Writer" },
+        { "id": "human_review", "type": "decisionPoint", "name": "Human Review" },
+        { "id": "review_pass", "type": "accept", "name": "Pass" },
+        { "id": "review_fail", "type": "reject", "name": "Fail" },
+        { "id": "modify_prompt", "type": "modify", "name": "Modify via Prompting" },
+        { "id": "submitted", "type": "finalOutcome", "name": "Submitted" }
+      ],
+      "flows": [
+        { "id": "flow_1", "from": "start_1", "to": "user" },
+        { "id": "flow_2", "from": "user", "to": "inputs" },
+        { "id": "flow_3", "from": "inputs", "to": "pii_check" },
+        { "id": "flow_4", "from": "pii_check", "to": "pii_true", "name": "True" },
+        { "id": "flow_5", "from": "pii_check", "to": "pii_false", "name": "False" },
+        { "id": "flow_6", "from": "pii_false", "to": "ensure_approved" },
+        { "id": "flow_7", "from": "ensure_approved", "to": "build_prompt" },
+        { "id": "flow_8", "from": "pii_true", "to": "build_prompt" },
+        { "id": "flow_9", "from": "build_prompt", "to": "llm_writer" },
+        { "id": "flow_10", "from": "llm_writer", "to": "human_review" },
+        { "id": "flow_11", "from": "human_review", "to": "review_pass", "name": "Pass" },
+        { "id": "flow_12", "from": "human_review", "to": "review_fail", "name": "Fail" },
+        { "id": "flow_13", "from": "review_pass", "to": "submitted" },
+        { "id": "flow_14", "from": "review_fail", "to": "modify_prompt" },
+        { "id": "flow_15", "from": "modify_prompt", "to": "llm_writer" }
+      ]
+    }
+  }
+]
