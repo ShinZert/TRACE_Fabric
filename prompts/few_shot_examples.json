@@ -4,7 +4,6 @@
     "assistant": {
       "process_name": "CrowdAI Dented Can Identification",
       "elements": [
-        { "id": "start_1", "type": "startEvent", "name": "Line Inspection Begins" },
         { "id": "analyst", "type": "humanSource", "name": "Manufacturing Analyst" },
         { "id": "video_feed", "type": "inputOutput", "name": "Video Feed on Manufacturing Line" },
         { "id": "detector", "type": "fixedAIModel", "name": "Identification of Dented Cans" },
@@ -19,7 +18,6 @@
         { "id": "training_updated", "type": "finalOutcome", "name": "Training Data Updated with Edge Examples" }
       ],
       "flows": [
-        { "id": "flow_1", "from": "start_1", "to": "analyst" },
         { "id": "flow_2", "from": "analyst", "to": "video_feed" },
         { "id": "flow_3", "from": "video_feed", "to": "detector" },
         { "id": "flow_4", "from": "detector", "to": "detections" },
@@ -41,7 +39,6 @@
     "assistant": {
       "process_name": "KyklosTech Guideline-Integrated Decision Engine",
       "elements": [
-        { "id": "start_1", "type": "startEvent", "name": "Decision Support Begins" },
         { "id": "patient", "type": "humanSource", "name": "Patient" },
         { "id": "preferences", "type": "inputOutput", "name": "Patient's Treatment Preferences" },
         { "id": "medical_history", "type": "inputOutput", "name": "Medical History + EHR" },
@@ -59,7 +56,6 @@
         { "id": "documented", "type": "finalOutcome", "name": "Formal Documentation in Medical Record" }
       ],
       "flows": [
-        { "id": "flow_1", "from": "start_1", "to": "patient" },
         { "id": "flow_2", "from": "patient", "to": "preferences" },
         { "id": "flow_3", "from": "preferences", "to": "ranking_model" },
         { "id": "flow_4", "from": "medical_history", "to": "ranking_model" },
@@ -86,7 +82,6 @@
     "assistant": {
       "process_name": "USA Federal Employee Award Writing",
       "elements": [
-        { "id": "start_1", "type": "startEvent", "name": "Award Drafting Requested" },
         { "id": "user", "type": "humanSource", "name": "User" },
         { "id": "inputs", "type": "inputOutput", "name": "Example Award, Awardee Bio, Event Details" },
         { "id": "pii_check", "type": "decisionPoint", "name": "Free from PII / CUI?" },
@@ -102,7 +97,6 @@
         { "id": "submitted", "type": "finalOutcome", "name": "Submitted" }
       ],
       "flows": [
-        { "id": "flow_1", "from": "start_1", "to": "user" },
         { "id": "flow_2", "from": "user", "to": "inputs" },
         { "id": "flow_3", "from": "inputs", "to": "pii_check" },
         { "id": "flow_4", "from": "pii_check", "to": "pii_true", "name": "True" },

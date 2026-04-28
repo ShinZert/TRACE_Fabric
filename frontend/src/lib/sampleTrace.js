@@ -6,7 +6,6 @@
 export const sampleTrace = {
   process_name: "AI-Assisted Clinical Note Generation",
   elements: [
-    { id: "start_1",        type: "startEvent",          name: "" },
     { id: "patient",        type: "humanSource",         name: "Patient" },
     { id: "consult_ui",     type: "ui",                  name: "Telehealth App" },
     { id: "audio",          type: "inputOutput",         name: "Consultation Audio" },
@@ -25,7 +24,6 @@ export const sampleTrace = {
     { id: "ehr",            type: "finalOutcome",        name: "Saved to EHR" },
   ],
   flows: [
-    { id: "flow_1",  from: "start_1",       to: "patient" },
     { id: "flow_2",  from: "patient",       to: "consult_ui" },
     { id: "flow_3",  from: "consult_ui",    to: "audio" },
     { id: "flow_4",  from: "audio",         to: "transcribe" },
@@ -42,6 +40,6 @@ export const sampleTrace = {
     { id: "flow_15", from: "modify_out",    to: "ehr" },
     { id: "flow_16", from: "reject_out",    to: "training_loop" },
     { id: "flow_17", from: "training_loop", to: "redraft" },
-    { id: "flow_18", from: "redraft",       to: "draft_note" },
+    { id: "flow_18", from: "redraft",       to: "draft_note", from_side: "bottom", to_side: "bottom" },
   ],
 };

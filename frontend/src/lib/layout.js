@@ -6,7 +6,7 @@ import { TYPE_STYLES } from "./types";
 export function layoutWithDagre(nodes, edges) {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 130, edgesep: 30 });
+  g.setGraph({ rankdir: "LR", nodesep: 30, ranksep: 90, edgesep: 15 });
 
   nodes.forEach((n) => {
     const s = TYPE_STYLES[n.data.ftype] || { w: 140, h: 60 };
@@ -28,11 +28,14 @@ export function layoutWithDagre(nodes, edges) {
 
 // The custom FabricEdge component renders its own label styling via
 // EdgeLabelRenderer — the labelBg* props that the default React Flow edge
-// understands aren't used here.
+// understands aren't used here. `interactionWidth` widens the invisible hit
+// area along each edge's path so converging arrows are easier to click
+// individually, even where their final segments share a pixel.
 const EDGE_DEFAULTS = {
   type: "fabric",
   style: { stroke: "#9ca3af", strokeWidth: 2 },
   markerEnd: { type: "arrowclosed", color: "#9ca3af" },
+  interactionWidth: 36,
 };
 
 const SIDES = new Set(["top", "right", "bottom", "left"]);
@@ -53,9 +56,12 @@ export function traceToFlow(trace) {
       id: fl.id,
       source: fl.from,
       target: fl.to,
-      // Anchor to a per-side handle so React Flow's reconnect anchors
-      // line up with the visible line endpoint. Auto defaults to LR
-      // (right → left) which matches dagre's layout direction.
+      // Anchor to a per-side handle so React Flow's reconnect anchors line
+      // up with the visible line endpoint. Auto defaults to LR (right →
+      // left) which matches dagre's layout direction. Spreading edges
+      // across other sides was tried but produced U-loops when targets
+      // weren't actually above/below the source — the wider
+      // interactionWidth covers the click-detection problem instead.
       sourceHandle: fromSide ? `side-${fromSide}` : "side-right",
       targetHandle: toSide ? `side-${toSide}` : "side-left",
       label: fl.name || "",

@@ -73,7 +73,7 @@ def test_sync_valid_trace(client, valid_trace):
 
 def test_sync_schema_invalid_rejected(client, valid_trace):
     bad = dict(valid_trace)
-    bad["elements"] = [{"id": "Bad-Id", "type": "startEvent", "name": "X"}]
+    bad["elements"] = [{"id": "Bad-Id", "type": "humanSource", "name": "X"}]
     r = client.post("/api/sync", json={"trace": bad})
     assert r.status_code == 400
     assert r.json["status"] == "rejected"
@@ -81,12 +81,12 @@ def test_sync_schema_invalid_rejected(client, valid_trace):
 
 def test_sync_semantic_warning_still_passes(client):
     """Schema-valid but semantically imperfect traces sync with warnings."""
-    # No startEvent — schema-valid, semantically wrong.
+    # No finalOutcome — schema-valid, semantically wrong.
     bad = {
         "process_name": "x",
         "elements": [
-            {"id": "a", "type": "userTask", "name": "A"},
-            {"id": "b", "type": "endEvent", "name": "B"},
+            {"id": "a", "type": "humanSource", "name": "A"},
+            {"id": "b", "type": "userTask", "name": "B"},
         ],
         "flows": [{"id": "f", "from": "a", "to": "b"}],
     }

@@ -52,11 +52,23 @@ function SummaryMessage({ summary, onConfirm, onRevise, disabled }) {
 }
 
 function TypingIndicator() {
+  // Elapsed-second counter so users can tell "still working" from "frozen"
+  // (OpenAI image+trace requests routinely take 30–60s).
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
   return (
     <div className="message assistant typing">
       <span className="dot" />
       <span className="dot" />
       <span className="dot" />
+      {seconds > 0 && (
+        <span className="typing-elapsed">
+          {seconds}s <span className="typing-hint">· usually 30–60s</span>
+        </span>
+      )}
     </div>
   );
 }
@@ -76,9 +88,25 @@ export const ChatPanel = forwardRef(function ChatPanel({
   const messagesRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Lets App's empty-state CTA reuse the existing image picker.
+  // Lets App's empty-state CTA reuse the existing image picker and prefill the
+  // textarea (e.g. "Try an example prompt" drops the example into the input
+  // without sending so the user can edit and press Send themselves).
   useImperativeHandle(ref, () => ({
     triggerImageUpload: () => fileInputRef.current?.click(),
+    fillInput: (value) => {
+      setText(value);
+      // Defer DOM work until after React paints the new value, otherwise
+      // scrollHeight reflects the stale (empty) textarea and selection
+      // positions can land at the wrong index.
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.focus();
+        el.style.height = "auto";
+        el.style.height = Math.min(el.scrollHeight, 300) + "px";
+        el.setSelectionRange(value.length, value.length);
+      });
+    },
   }), []);
 
   // Auto-scroll to bottom on new messages.

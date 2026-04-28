@@ -16,7 +16,6 @@ BPMN_JSON_SCHEMA = {
                     "type": {
                         "type": "string",
                         "enum": [
-                            "startEvent", "endEvent",
                             "task", "userTask", "serviceTask", "scriptTask",
                             "exclusiveGateway", "parallelGateway",
                             "humanSource", "inputOutput",
@@ -65,29 +64,27 @@ def validate_schema(data):
     return len(errors) == 0, errors
 
 
-END_TYPES = {"endEvent", "finalOutcome"}
+TERMINAL_TYPES = {"finalOutcome"}
 
 
 def validate_semantics(data):
-    """Semantic validation for BPMN correctness. Returns (is_valid, errors)."""
+    """Semantic validation for Fabric trace correctness. Returns (is_valid, errors).
+
+    Fabric does not use a dedicated start-event marker. Instead, the entry
+    point is identified structurally as the single element with no incoming
+    flows. This keeps the ontology focused on AI-workflow primitives
+    (humanSource, fixedAIModel, finalOutcome, …).
+    """
     errors = []
     elements = data.get("elements", [])
     flows = data.get("flows", [])
 
     element_ids = {el["id"] for el in elements}
-    element_types = {el["id"]: el["type"] for el in elements}
 
-    # Exactly one startEvent
-    start_events = [el for el in elements if el["type"] == "startEvent"]
-    if len(start_events) == 0:
-        errors.append("Process must have exactly one startEvent.")
-    elif len(start_events) > 1:
-        errors.append(f"Process has {len(start_events)} startEvents; exactly 1 is required.")
-
-    # At least one terminal node (endEvent or Fabric finalOutcome)
-    end_events = [el for el in elements if el["type"] in END_TYPES]
-    if len(end_events) == 0:
-        errors.append("Process must have at least one endEvent or finalOutcome.")
+    # At least one terminal (finalOutcome) — Fabric's only terminal type.
+    terminals = [el for el in elements if el["type"] in TERMINAL_TYPES]
+    if len(terminals) == 0:
+        errors.append("Process must have at least one finalOutcome.")
 
     # Unique element IDs
     seen_ids = set()
@@ -110,7 +107,7 @@ def validate_semantics(data):
         if flow["to"] not in element_ids:
             errors.append(f"Flow '{flow['id']}' references unknown target '{flow['to']}'.")
 
-    # No orphan nodes (every non-start element must have incoming, every non-end must have outgoing)
+    # Per-node connectivity counts
     incoming = {eid: 0 for eid in element_ids}
     outgoing = {eid: 0 for eid in element_ids}
     for flow in flows:
@@ -119,21 +116,21 @@ def validate_semantics(data):
         if flow["to"] in incoming:
             incoming[flow["to"]] += 1
 
+    # Exactly one entry point — the element with no incoming flows.
+    entry_ids = [eid for eid in element_ids if incoming.get(eid, 0) == 0]
+    if len(entry_ids) == 0 and elements:
+        errors.append("Process has no entry point — every element has an incoming flow (cycle).")
+    elif len(entry_ids) > 1:
+        joined = ", ".join(sorted(entry_ids))
+        errors.append(f"Process has multiple entry points ({joined}); exactly 1 is required.")
+
+    # Non-terminal elements must have ≥1 outgoing flow
     for el in elements:
-        eid = el["id"]
-        etype = el["type"]
-        if etype != "startEvent" and incoming.get(eid, 0) == 0:
-            errors.append(f"Element '{eid}' has no incoming flows (orphan).")
-        if etype not in END_TYPES and outgoing.get(eid, 0) == 0:
-            errors.append(f"Element '{eid}' has no outgoing flows (dead end).")
+        if el["type"] not in TERMINAL_TYPES and outgoing.get(el["id"], 0) == 0:
+            errors.append(f"Element '{el['id']}' has no outgoing flows (dead end).")
 
-    # startEvent should not have incoming flows
-    for el in start_events:
-        if incoming.get(el["id"], 0) > 0:
-            errors.append(f"startEvent '{el['id']}' should not have incoming flows.")
-
-    # Terminal nodes should not have outgoing flows
-    for el in end_events:
+    # Terminal nodes must not have outgoing flows
+    for el in terminals:
         if outgoing.get(el["id"], 0) > 0:
             errors.append(f"Terminal node '{el['id']}' should not have outgoing flows.")
 

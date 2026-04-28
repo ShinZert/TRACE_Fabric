@@ -3,20 +3,6 @@
 // inspector dropdown labels, minimap colour coding, palette tooltips,
 // and the legend.
 export const TYPE_STYLES = {
-  startEvent: {
-    label: "Start event", shape: "ellipse",
-    bg: "#ffffff", border: "#1d1d1f", borderWidth: 2,
-    w: 50, h: 50, textColor: "#1d1d1f",
-    description: "Where the workflow begins. Every trace has exactly one.",
-    example: "User submits an application.",
-  },
-  endEvent: {
-    label: "End event", shape: "ellipse",
-    bg: "#ffffff", border: "#1d1d1f", borderWidth: 4,
-    w: 50, h: 50, textColor: "#1d1d1f",
-    description: "Where a branch of the workflow concludes.",
-    example: "Case closed; record archived.",
-  },
   humanSource: {
     label: "Human source", shape: "ellipse",
     bg: "#dbeafe", border: "#1d4ed8", borderWidth: 2,
@@ -32,14 +18,14 @@ export const TYPE_STYLES = {
     example: "Uploaded document, model prediction, user query.",
   },
   fixedAIModel: {
-    label: "Fixed AI model", shape: "hexagon",
+    label: "AI Model\n(Trained)", shape: "hexagon",
     bg: "#ede9fe", border: "#6d28d9", borderWidth: 2,
     w: 160, h: 76, textColor: "#4c1d95",
     description: "An AI model used as-is — weights don't change in this workflow.",
     example: "GPT-4 drafting a customer reply.",
   },
   trainingAIModel: {
-    label: "Training AI model", shape: "hexagon",
+    label: "AI Model\n(In-training)", shape: "hexagon",
     bg: "#ede9fe", border: "#6d28d9", borderWidth: 2, borderStyle: "dashed",
     w: 160, h: 76, textColor: "#4c1d95",
     description: "An AI model that learns from or is updated by the workflow.",

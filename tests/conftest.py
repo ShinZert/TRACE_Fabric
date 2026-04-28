@@ -22,17 +22,21 @@ import pytest
 
 @pytest.fixture
 def valid_trace():
-    """Minimal Fabric trace that passes both schema and semantic validation."""
+    """Minimal Fabric trace that passes both schema and semantic validation.
+
+    Fabric has no start-event type — the entry is identified structurally
+    as the only element with no incoming flow (here, `human`).
+    """
     return {
         "process_name": "Test Process",
         "elements": [
-            {"id": "start", "type": "startEvent", "name": "Start"},
-            {"id": "task1", "type": "userTask", "name": "Do Something"},
-            {"id": "end", "type": "endEvent", "name": "End"},
+            {"id": "human", "type": "humanSource", "name": "Operator"},
+            {"id": "model", "type": "fixedAIModel", "name": "Classifier"},
+            {"id": "outcome", "type": "finalOutcome", "name": "Recorded"},
         ],
         "flows": [
-            {"id": "f1", "from": "start", "to": "task1"},
-            {"id": "f2", "from": "task1", "to": "end"},
+            {"id": "f1", "from": "human", "to": "model"},
+            {"id": "f2", "from": "model", "to": "outcome"},
         ],
     }
 

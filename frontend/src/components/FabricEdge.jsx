@@ -61,7 +61,7 @@ export function FabricEdge({
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               pointerEvents: "all",
-              fontSize: 11,
+              fontSize: 13,
               fontFamily: "inherit",
             }}
           >
@@ -88,7 +88,7 @@ export function FabricEdge({
                   border: "1px solid #0a84ff",
                   borderRadius: 4,
                   padding: "2px 8px",
-                  fontSize: 11,
+                  fontSize: 13,
                   fontFamily: "inherit",
                   outline: "none",
                   minWidth: 70,

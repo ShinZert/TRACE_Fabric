@@ -22,7 +22,7 @@ def test_missing_process_name_fails_schema(valid_trace):
 
 def test_invalid_id_pattern_fails_schema(valid_trace):
     bad = deepcopy(valid_trace)
-    bad["elements"][0]["id"] = "Start"  # capital letters not allowed
+    bad["elements"][0]["id"] = "Operator"  # capital letters not allowed
     ok, _ = validate_schema(bad)
     assert not ok
 
@@ -34,39 +34,54 @@ def test_unknown_element_type_fails_schema(valid_trace):
     assert not ok
 
 
-def test_no_start_event_fails_semantics(valid_trace):
+def test_startEvent_no_longer_in_schema(valid_trace):
+    """Boundary events were removed from the Fabric ontology."""
     bad = deepcopy(valid_trace)
-    bad["elements"][0]["type"] = "userTask"
-    ok, errs = validate_semantics(bad)
+    bad["elements"][0]["type"] = "startEvent"
+    ok, _ = validate_schema(bad)
     assert not ok
-    assert any("startEvent" in e for e in errs)
 
 
-def test_two_start_events_fails_semantics(valid_trace):
+def test_endEvent_no_longer_in_schema(valid_trace):
     bad = deepcopy(valid_trace)
-    bad["elements"][1]["type"] = "startEvent"
-    ok, errs = validate_semantics(bad)
+    bad["elements"][2]["type"] = "endEvent"
+    ok, _ = validate_schema(bad)
     assert not ok
-    assert any("startEvent" in e for e in errs)
 
 
-def test_no_terminal_node_fails_semantics(valid_trace):
+def test_missing_finalOutcome_fails_semantics(valid_trace):
+    """Trace must have at least one finalOutcome."""
     bad = deepcopy(valid_trace)
     bad["elements"][2]["type"] = "userTask"
-    ok, _ = validate_semantics(bad)
-    assert not ok
-
-
-def test_finalOutcome_counts_as_terminal(valid_trace):
-    bad = deepcopy(valid_trace)
-    bad["elements"][2]["type"] = "finalOutcome"
     ok, errs = validate_semantics(bad)
-    assert ok, errs
+    assert not ok
+    assert any("finalOutcome" in e for e in errs)
+
+
+def test_multiple_entry_points_fails_semantics(valid_trace):
+    """Two elements with no incoming flow → ambiguous start."""
+    bad = deepcopy(valid_trace)
+    bad["elements"].append({"id": "loose", "type": "humanSource", "name": "Loose"})
+    bad["flows"].append({"id": "f3", "from": "loose", "to": "model"})
+    ok, errs = validate_semantics(bad)
+    assert not ok
+    assert any("entry" in e.lower() for e in errs)
+
+
+def test_no_entry_point_fails_semantics(valid_trace):
+    """Pure cycle — every node has incoming, so there's no entry."""
+    bad = deepcopy(valid_trace)
+    bad["flows"].append({"id": "f3", "from": "outcome", "to": "human"})
+    # outcome is finalOutcome with outgoing → terminal_has_outgoing also fires,
+    # but the entry-point error must be among the reported errors.
+    ok, errs = validate_semantics(bad)
+    assert not ok
+    assert any("entry" in e.lower() or "cycle" in e.lower() for e in errs)
 
 
 def test_duplicate_element_id_fails(valid_trace):
     bad = deepcopy(valid_trace)
-    bad["elements"].append({"id": "start", "type": "userTask", "name": "Dupe"})
+    bad["elements"].append({"id": "human", "type": "userTask", "name": "Dupe"})
     ok, errs = validate_semantics(bad)
     assert not ok
     assert any("Duplicate" in e for e in errs)
@@ -80,18 +95,24 @@ def test_flow_to_unknown_element_fails(valid_trace):
     assert any("ghost" in e for e in errs)
 
 
-def test_orphan_node_fails(valid_trace):
+def test_dead_end_fails(valid_trace):
+    """Non-terminal element with no outgoing flow."""
     bad = deepcopy(valid_trace)
-    bad["elements"].append({"id": "lonely", "type": "userTask", "name": "Lonely"})
-    bad["flows"].append({"id": "f3", "from": "lonely", "to": "end"})
+    bad["elements"].append({"id": "stranded", "type": "userTask", "name": "Stranded"})
+    bad["flows"].append({"id": "f3", "from": "human", "to": "stranded"})
     ok, errs = validate_semantics(bad)
     assert not ok
-    assert any("incoming" in e.lower() or "orphan" in e.lower() for e in errs)
+    assert any("dead end" in e.lower() or "outgoing" in e.lower() for e in errs)
 
 
-def test_start_event_with_incoming_fails(valid_trace):
+def test_finalOutcome_with_outgoing_fails(valid_trace):
+    """Terminal nodes must not have outgoing flows."""
     bad = deepcopy(valid_trace)
-    bad["flows"].append({"id": "f3", "from": "task1", "to": "start"})
+    bad["elements"].append({"id": "after", "type": "userTask", "name": "After"})
+    bad["flows"].append({"id": "f3", "from": "outcome", "to": "after"})
+    # Re-route `after` to a new terminal so the only error is the bad outgoing.
+    bad["elements"].append({"id": "outcome2", "type": "finalOutcome", "name": "Done"})
+    bad["flows"].append({"id": "f4", "from": "after", "to": "outcome2"})
     ok, errs = validate_semantics(bad)
     assert not ok
-    assert any("startEvent" in e for e in errs)
+    assert any("outgoing" in e.lower() for e in errs)

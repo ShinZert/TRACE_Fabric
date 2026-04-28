@@ -84,7 +84,13 @@ export function Inspector({
   }
 
   if (!node) {
-    return null;
+    return (
+      <div className="inspector">
+        <div className="inspector-empty">
+          Select a node or edge to see its details.
+        </div>
+      </div>
+    );
   }
 
   return (

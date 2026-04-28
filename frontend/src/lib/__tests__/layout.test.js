@@ -4,9 +4,9 @@ import { traceToFlow, flowToTrace, layoutWithDagre } from "../layout";
 const sample = {
   process_name: "Test",
   elements: [
-    { id: "start", type: "startEvent", name: "Start" },
-    { id: "task1", type: "userTask", name: "Do It" },
-    { id: "end", type: "endEvent", name: "End" },
+    { id: "start", type: "humanSource", name: "Operator" },
+    { id: "task1", type: "fixedAIModel", name: "Do It" },
+    { id: "end", type: "finalOutcome", name: "Done" },
   ],
   flows: [
     { id: "f1", from: "start", to: "task1" },
@@ -21,7 +21,7 @@ describe("traceToFlow / flowToTrace", () => {
     expect(back.process_name).toBe("Test");
     expect(back.elements).toHaveLength(3);
     expect(back.flows).toHaveLength(2);
-    expect(back.elements[1]).toEqual({ id: "task1", type: "userTask", name: "Do It" });
+    expect(back.elements[1]).toEqual({ id: "task1", type: "fixedAIModel", name: "Do It" });
     expect(back.flows[0]).toMatchObject({ id: "f1", from: "start", to: "task1" });
   });
 
