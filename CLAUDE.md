@@ -56,7 +56,7 @@ The chat endpoint handles four distinct flows:
 - **`prompts/system_prompt.py`** — `SYSTEM_PROMPT` defines the JSON output format and the 12 Fabric element types; `SUMMARY_PROMPT` instructs the LLM to produce plain-text process summaries; `EDIT_CONTEXT_TEMPLATE` injects current trace state for edits.
 - **`prompts/few_shot_examples.py`** — 3 few-shot examples always included in every request, all using Fabric types. Loaded from `prompts/few_shot_examples.json`.
 - **`services/llm_service.py`** — OpenAI integration; `generate_trace()` for trace generation, `generate_summary()` for the summarize-then-confirm step; `_extract_json()` handles raw JSON, code-fenced JSON, and embedded JSON via brace-matching fallback; `_build_messages()` assembles the full conversation array.
-- **`services/schema_validator.py`** — Two-pass validation: jsonschema against the Fabric schema, then semantic checks (exactly 1 startEvent, ≥1 terminal node, no orphans, valid flow refs, no duplicate IDs, correct start/terminal flow directions).
+- **`services/schema_validator.py`** — Two-pass validation: jsonschema against the Fabric schema, then semantic checks (≥1 finalOutcome, exactly 1 entry node — i.e. a single element with no incoming flow — no dead ends, valid flow refs, no duplicate IDs, finalOutcomes have no outgoing flows). Fabric has no separate start-event type; the entry is identified structurally.
 
 ### Frontend modules
 
@@ -86,8 +86,9 @@ The LLM produces (and the editor consumes) the same intermediate JSON schema:
 Element IDs must match `^[a-z][a-z0-9_]*$`. Supported element types (from `services/schema_validator.py`):
 
 - **Fabric types:** `humanSource`, `inputOutput`, `fixedAIModel`, `trainingAIModel`, `governanceMechanism`, `ui`, `decisionPoint`, `accept`, `modify`, `reject`, `restart`, `finalOutcome`
-- **Boundary events:** `startEvent`, `endEvent`
 - **Generic activities/gateways (rarely used):** `task`, `userTask`, `serviceTask`, `scriptTask`, `exclusiveGateway`, `parallelGateway`
+
+The entry of a trace is whichever element has no incoming flow — typically a `humanSource`, `ui`, or `inputOutput`. Terminal nodes are `finalOutcome`s. There is no dedicated start- or end-event type.
 
 ### State management
 

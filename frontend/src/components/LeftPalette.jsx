@@ -3,11 +3,10 @@ import { createPortal } from "react-dom";
 import { TYPE_STYLES } from "../lib/types";
 import { ShapeSVG } from "../lib/shapes";
 
-// Palette is grouped into labelled sections rather than a flat 14-thumbnail
+// Palette is grouped into labelled sections rather than a flat thumbnail
 // grid. Each section maps to a chunk of the Fabric ontology so the type
-// taxonomy is visible and users can locate a shape without scanning all 14.
+// taxonomy is visible and users can locate a shape without scanning the lot.
 const PALETTE_GROUPS = [
-  { label: "Events",    types: ["startEvent", "endEvent"] },
   { label: "Actors",    types: ["humanSource", "ui"] },
   { label: "AI",        types: ["fixedAIModel", "trainingAIModel"] },
   { label: "Data",      types: ["inputOutput"] },
@@ -31,6 +30,22 @@ const ICONS = {
          strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
       <path d="M13 13l6 6" />
+    </svg>
+  ),
+  marquee: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round">
+      {/* Dashed rectangle (marquee selection) */}
+      <path d="M4 4h3" />
+      <path d="M10 4h4" />
+      <path d="M17 4h3" />
+      <path d="M20 7v3" />
+      <path d="M20 14v3" />
+      <path d="M20 20h-3" />
+      <path d="M14 20h-4" />
+      <path d="M7 20h-3" />
+      <path d="M4 17v-3" />
+      <path d="M4 10v-3" />
     </svg>
   ),
 };
@@ -71,10 +86,17 @@ export function LeftPalette({ mode, setMode }) {
         </button>
         <button
           className={"palette-tool" + (mode === "select" ? " active" : "")}
-          title="Selection tool — drag to box-select (V)"
+          title="Select tool — click to select (V)"
           onClick={() => setMode("select")}
         >
           {ICONS.cursor}
+        </button>
+        <button
+          className={"palette-tool" + (mode === "marquee" ? " active" : "")}
+          title="Marquee tool — drag to box-select (M)"
+          onClick={() => setMode("marquee")}
+        >
+          {ICONS.marquee}
         </button>
       </div>
       <div className="palette-sep" />
@@ -95,9 +117,13 @@ export function LeftPalette({ mode, setMode }) {
                   onMouseEnter={(e) => onShapeEnter(e, ftype)}
                   onMouseLeave={() => setHovered(null)}
                 >
-                  <div style={{ position: "relative", width: mw, height: mh }}>
+                  <div
+                    className="palette-shape-thumb"
+                    style={{ position: "relative", width: mw, height: mh }}
+                  >
                     <ShapeSVG ftype={ftype} w={mw} h={mh} miniature />
                   </div>
+                  <span className="palette-shape-label">{s.paletteLabel || s.label}</span>
                 </div>
               );
             })}

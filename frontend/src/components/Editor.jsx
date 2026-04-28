@@ -19,6 +19,7 @@ import {
   flowToTrace,
   flowEdgeDefaults,
 } from "../lib/layout";
+import { toPng } from "html-to-image";
 import { validateTrace } from "../lib/validate";
 import { nodeTypes } from "./FabricNode";
 import { edgeTypes } from "./FabricEdge";
@@ -51,6 +52,7 @@ function EditorInner({
   onTryExamplePrompt,
   isDirty,
   isSyncing,
+  syncWarnings,
   syncDisabledReason,
 }) {
   const [nodes, setNodes] = useState([]);
@@ -362,16 +364,19 @@ function EditorInner({
   const onNodesDelete = useCallback(
     (deleted) => {
       pushHistory();
-      setNodes((ns) => {
-        // applyNodeChanges has already removed them; this is just to commit
-        const remainingIds = new Set(ns.map((n) => n.id));
-        for (const d of deleted) remainingIds.delete(d.id);
-        const next = ns.filter((n) => remainingIds.has(n.id));
-        commit(next, edges);
-        return next;
-      });
+      const deletedIds = new Set(deleted.map((d) => d.id));
+      // React Flow hides edges that point to non-existent nodes but keeps
+      // them in state, so the validator would flag them as unknown_ref. Drop
+      // any edge connected to a deleted node before committing.
+      const nextEdges = edges.filter(
+        (e) => !deletedIds.has(e.source) && !deletedIds.has(e.target)
+      );
+      const nextNodes = nodes.filter((n) => !deletedIds.has(n.id));
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      commit(nextNodes, nextEdges);
     },
-    [pushHistory, commit, edges]
+    [pushHistory, commit, nodes, edges]
   );
   const onEdgesDelete = useCallback(
     () => {
@@ -424,17 +429,29 @@ function EditorInner({
       } else if (cmd && (e.key === "y" || e.key === "Y" || (e.shiftKey && (e.key === "z" || e.key === "Z")))) {
         e.preventDefault();
         redo();
+      } else if (cmd && (e.key === "=" || e.key === "+")) {
+        e.preventDefault();
+        reactFlow.zoomIn({ duration: 200 });
+      } else if (cmd && e.key === "-") {
+        e.preventDefault();
+        reactFlow.zoomOut({ duration: 200 });
+      } else if (cmd && e.key === "0") {
+        e.preventDefault();
+        reactFlow.fitView({ duration: 300, padding: 0.15 });
       } else if (!cmd && (e.key === "v" || e.key === "V")) {
         e.preventDefault();
         setMode("select");
       } else if (!cmd && (e.key === "h" || e.key === "H")) {
         e.preventDefault();
         setMode("pan");
+      } else if (!cmd && (e.key === "m" || e.key === "M")) {
+        e.preventDefault();
+        setMode("marquee");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  }, [undo, redo, reactFlow]);
 
   // Live client-side validation. The backend (services/schema_validator.py)
   // remains authoritative; this just gives instant in-canvas feedback so the
@@ -443,6 +460,25 @@ function EditorInner({
     () => validateTrace(flowToTrace(processName, nodes, edges)),
     [processName, nodes, edges]
   );
+
+  // Fold backend warnings from the last sync into the same panel that shows
+  // local validation issues. They have no nodeId (the backend returns plain
+  // strings), so they appear as un-revealable bullets and don't decorate any
+  // node. Local validation already covers most of the same checks, so in
+  // practice this list is usually empty.
+  const combinedIssues = useMemo(() => {
+    const extras = (syncWarnings || []).map((message, i) => ({
+      code: "sync_warning",
+      severity: "warning",
+      message,
+      key: `sync-${i}`,
+    }));
+    return {
+      issues: [...validation.issues, ...extras],
+      errorCount: validation.summary.errorCount,
+      warningCount: validation.summary.warningCount + extras.length,
+    };
+  }, [validation, syncWarnings]);
 
   // Attach per-node issues for FabricNode to render its red ring + tooltip.
   // Decorated copies are passed to React Flow only — raw `nodes` state is
@@ -481,6 +517,50 @@ function EditorInner({
     },
     [reactFlow]
   );
+
+  // Export the current diagram as a PNG. We snapshot `.react-flow` (the root,
+  // not just `.react-flow__viewport`) so EdgeLabelRenderer's portaled labels
+  // are included. We temporarily fitView to ensure the whole diagram is in
+  // frame, capture, then restore the previous viewport.
+  const handleExportPng = useCallback(async () => {
+    if (nodes.length === 0) return;
+    const root = document.querySelector(".react-flow");
+    if (!root) return;
+
+    const savedViewport = reactFlow.getViewport();
+    reactFlow.fitView({ padding: 0.1, duration: 0 });
+
+    // Wait for two animation frames so React Flow re-renders at the new
+    // transform before html-to-image walks the DOM.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    try {
+      const dataUrl = await toPng(root, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2,
+        // Strip React Flow chrome (controls, minimap, attribution, panels)
+        // from the screenshot so the export is just the diagram.
+        filter: (el) => {
+          if (!(el instanceof Element)) return true;
+          if (el.classList?.contains("react-flow__panel")) return false;
+          if (el.classList?.contains("react-flow__controls")) return false;
+          if (el.classList?.contains("react-flow__minimap")) return false;
+          if (el.classList?.contains("react-flow__background")) return false;
+          return true;
+        },
+      });
+
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download =
+        (processName || "fabric-trace").replace(/\s+/g, "_").toLowerCase() + ".png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      reactFlow.setViewport(savedViewport, { duration: 0 });
+    }
+  }, [nodes.length, reactFlow, processName]);
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -524,12 +604,12 @@ function EditorInner({
             {isSyncing ? "Saving…" : "Editing…"}
           </span>
         )}
-        {validation.issues.length > 0 && (
+        {combinedIssues.issues.length > 0 && (
           <button
             type="button"
             className={
               "issues-pill" +
-              (validation.summary.errorCount > 0
+              (combinedIssues.errorCount > 0
                 ? " issues-pill-error"
                 : " issues-pill-warning") +
               (showIssues ? " issues-pill-active" : "")
@@ -537,9 +617,9 @@ function EditorInner({
             onClick={() => setShowIssues((s) => !s)}
             title="Show diagram issues"
           >
-            {validation.issues.length === 1
+            {combinedIssues.issues.length === 1
               ? "1 issue"
-              : `${validation.issues.length} issues`}
+              : `${combinedIssues.issues.length} issues`}
           </button>
         )}
         <div className="editor-toolbar-spacer" />
@@ -583,8 +663,17 @@ function EditorInner({
         <button className="btn" onClick={onExportJson} disabled={nodes.length === 0}>
           Export JSON
         </button>
+        <button
+          className="btn"
+          onClick={handleExportPng}
+          disabled={nodes.length === 0}
+          title="Download the diagram as a PNG image"
+        >
+          Export PNG
+        </button>
       </div>
 
+      <div className="editor-body">
       <div className={`canvas-wrap mode-${mode}`}>
         <LeftPalette mode={mode} setMode={setMode} />
         <EditorContext.Provider value={{ editingId, finishEdit, editingEdgeId, finishEdgeEdit }}>
@@ -620,23 +709,25 @@ function EditorInner({
           deleteKeyCode={["Backspace", "Delete"]}
           proOptions={{ hideAttribution: true }}
           panOnDrag={mode === "pan"}
-          selectionOnDrag={mode === "select"}
+          selectionOnDrag={mode === "marquee"}
           selectionMode="partial"
           multiSelectionKeyCode={["Shift"]}
           zoomOnScroll
-          panOnScroll={false}
+          zoomOnPinch
+          zoomActivationKeyCode="Control"
+          panOnScroll
         >
           <Background gap={24} size={1} color="#d2d2d7" />
           <Controls position="bottom-left" showInteractive={false} />
         </ReactFlow>
         </EditorContext.Provider>
-        {showIssues && validation.issues.length > 0 && (
+        {showIssues && combinedIssues.issues.length > 0 && (
           <div className="issues-panel" role="dialog" aria-label="Diagram issues">
             <div className="issues-panel-header">
               <span className="issues-panel-title">
-                {validation.issues.length === 1
+                {combinedIssues.issues.length === 1
                   ? "1 issue"
-                  : `${validation.issues.length} issues`}
+                  : `${combinedIssues.issues.length} issues`}
               </span>
               <button
                 type="button"
@@ -649,9 +740,9 @@ function EditorInner({
               </button>
             </div>
             <ul className="issues-panel-list">
-              {validation.issues.map((it, idx) => (
+              {combinedIssues.issues.map((it, idx) => (
                 <li
-                  key={idx}
+                  key={it.key || idx}
                   className={`issues-panel-item issues-panel-item-${it.severity}`}
                 >
                   <span className="issues-panel-dot" aria-hidden="true" />
@@ -713,6 +804,7 @@ function EditorInner({
         onUpdateEdge={handleUpdateEdge}
         onDeleteEdge={handleDeleteEdge}
       />
+      </div>
     </div>
   );
 }

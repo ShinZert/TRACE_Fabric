@@ -30,6 +30,11 @@ export default function App() {
   const [pendingImage, setPendingImage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  // Warnings returned by the most recent /api/sync response. Surfaced in the
+  // editor's issues panel rather than chat so heavy editing doesn't spam the
+  // conversation. Cleared as soon as the user makes another local edit, since
+  // those warnings reference the previously-synced state.
+  const [syncWarnings, setSyncWarnings] = useState([]);
   const chatPanelRef = useRef(null);
 
   const isDirty = (() => {
@@ -91,6 +96,7 @@ export default function App() {
           }
           setTrace(data.trace);
           setTraceDraft(data.trace);
+          setSyncWarnings([]);
           setPendingImage(null);
         }
       } catch (err) {
@@ -132,6 +138,7 @@ export default function App() {
           }
           setTrace(data.trace);
           setTraceDraft(data.trace);
+          setSyncWarnings([]);
           setPendingImage(null);
         } else if (data.type === "summary") {
           appendMessages({ kind: "summary", summary: data.summary });
@@ -147,10 +154,11 @@ export default function App() {
 
   // ----- Editor → backend sync --------------------------------------------
 
-  // Sync the current editor draft to the backend. When `silent` is true (the
-  // auto-sync path), we skip the chat confirmation message and only surface
-  // warnings/errors — successful auto-saves are communicated by the dirty
-  // pill clearing on its own.
+  // Sync the current editor draft to the backend. Warnings are routed to the
+  // editor's issues panel via `syncWarnings`, not chat — auto-sync fires every
+  // ~2s during editing and chat-spam was annoying. The manual-sync path keeps
+  // a single "Edits synced." confirmation; auto-sync is fully silent on
+  // success and communicated by the dirty pill clearing.
   const handleSync = useCallback(
     async ({ silent = false } = {}) => {
       if (!traceDraft || !isDirty || isSyncing) return;
@@ -159,19 +167,11 @@ export default function App() {
         const data = await syncTrace(traceDraft);
         setTrace(data.trace);
         setTraceDraft(data.trace);
-        const hasWarnings = data.warnings && data.warnings.length > 0;
+        setSyncWarnings(data.warnings || []);
         if (!silent) {
-          const warnLine = hasWarnings
-            ? ` Warnings: ${data.warnings.join("; ")}.`
-            : "";
           appendMessages({
             role: "assistant",
-            text: "Edits synced. I'll use the updated trace for future changes." + warnLine,
-          });
-        } else if (hasWarnings) {
-          appendMessages({
-            role: "assistant",
-            text: `Auto-saved with warnings: ${data.warnings.join("; ")}.`,
+            text: "Edits synced. I'll use the updated trace for future changes.",
           });
         }
       } catch (err) {
@@ -187,6 +187,12 @@ export default function App() {
     },
     [traceDraft, isDirty, isSyncing, appendMessages]
   );
+
+  // Stale-warning guard: any local edit invalidates warnings from the prior
+  // sync, so drop them as soon as the draft diverges from the canonical trace.
+  useEffect(() => {
+    if (isDirty && syncWarnings.length > 0) setSyncWarnings([]);
+  }, [isDirty, syncWarnings.length]);
 
   // Auto-sync on idle: 2s after the last editor change, push the draft to
   // the backend so the LLM always sees the current state. The manual "Sync
@@ -210,6 +216,7 @@ export default function App() {
     setTrace(null);
     setTraceDraft(null);
     setPendingImage(null);
+    setSyncWarnings([]);
   }, [isProcessing]);
 
   // ----- Load an example trace without going through the LLM -------------
@@ -220,6 +227,7 @@ export default function App() {
     if (isProcessing) return;
     setTrace(sampleTrace);
     setTraceDraft(sampleTrace);
+    setSyncWarnings([]);
     setMessages([
       {
         role: "assistant",
@@ -245,10 +253,12 @@ export default function App() {
     chatPanelRef.current?.triggerImageUpload();
   }, []);
 
+  // Drops the example into the chat textarea instead of sending it, so the
+  // user can read or tweak it and press Send (or Enter) themselves.
   const handleTryExamplePrompt = useCallback(() => {
     if (isProcessing) return;
-    handleSend({ message: EXAMPLE_PROMPT });
-  }, [isProcessing, handleSend]);
+    chatPanelRef.current?.fillInput(EXAMPLE_PROMPT);
+  }, [isProcessing]);
 
   // ----- Import ------------------------------------------------------------
 
@@ -277,6 +287,7 @@ export default function App() {
       }
       setTrace(parsed);
       setTraceDraft(parsed);
+      setSyncWarnings([]);
       setMessages([
         {
           role: "assistant",
@@ -331,6 +342,7 @@ export default function App() {
         onTryExamplePrompt={handleTryExamplePrompt}
         isDirty={isDirty}
         isSyncing={isSyncing}
+        syncWarnings={syncWarnings}
         syncDisabledReason={
           !traceDraft
             ? "No trace yet"

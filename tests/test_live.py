@@ -40,5 +40,4 @@ def test_live_generate_trace_smoke():
     assert schema_ok, f"Schema errors: {schema_errs}"
 
     types = {el["type"] for el in trace["elements"]}
-    assert "startEvent" in types
-    assert types & {"endEvent", "finalOutcome"}, "trace has no terminal node"
+    assert "finalOutcome" in types, "trace has no finalOutcome (terminal) node"
