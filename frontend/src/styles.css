@@ -459,60 +459,45 @@ body {
   fill: #fafafa;
 }
 
+/* Validation: red dashed ring on the node wrapper. Sits outside the SVG
+   shape so it never clips the visual primitive — the inset value pulls the
+   ring out by 6px. Tooltip on hover comes from the wrapper's `title` attr. */
+.fabric-node-wrap.fabric-node-invalid::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 2px dashed #dc2626;
+  border-radius: 10px;
+  pointer-events: none;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+
 /* ---------- Connection handles -----------------------------------------
-   Default state: 11px dots with a white ring. Source handle (right) is
-   blue to signal "this side outputs"; target (left) stays neutral gray.
-   On node hover both handles scale up and the source dot pulses, so the
-   user's eye is drawn to where they should grab. The :where() wrapper
-   raises specificity over React Flow's own .react-flow__handle base
-   styles without using !important. */
+   miro/draw.io style: handles are hidden until you hover the node. Each
+   shape has 4 per-side handles (top/right/bottom/left) plus an invisible
+   "auto" anchor used by floating edges. The :where() wrapper raises
+   specificity over React Flow's own .react-flow__handle base styles
+   without using !important. */
 :where(.react-flow__handle).fabric-handle {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   border: 2px solid #ffffff;
-  background: #9ca3af;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
-  transition: width 120ms ease, height 120ms ease, background 120ms ease,
+  background: #0a84ff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  opacity: 0;
+  transition: opacity 120ms ease, width 120ms ease, height 120ms ease,
     box-shadow 120ms ease;
 }
-:where(.react-flow__handle).fabric-handle-source {
-  background: #0a84ff;
+/* Reveal handles on node hover or while a connection is being dragged. */
+.react-flow__node-fabric:hover :where(.react-flow__handle).fabric-handle,
+.react-flow.connecting :where(.react-flow__handle).fabric-handle {
+  opacity: 1;
 }
-/* On node hover: both handles scale up and gain a soft halo. */
-.react-flow__node-fabric:hover :where(.react-flow__handle).fabric-handle {
+/* Direct hover on a handle: bigger + halo so the drag target is obvious. */
+:where(.react-flow__handle).fabric-handle:hover {
   width: 14px;
   height: 14px;
-  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.12);
-}
-.react-flow__node-fabric:hover
-  :where(.react-flow__handle).fabric-handle-target {
-  background: #6b7280;
-}
-/* Pulse the source dot only while the node is hovered, so it's a focal
-   cue rather than constant motion noise on the canvas. */
-.react-flow__node-fabric:hover
-  :where(.react-flow__handle).fabric-handle-source {
-  animation: fabric-handle-pulse 1.4s ease-in-out infinite;
-}
-/* Direct hover on the handle itself: largest size + stronger ring, makes
-   the click target unambiguous once the cursor is over it. */
-:where(.react-flow__handle).fabric-handle:hover {
-  width: 16px;
-  height: 16px;
   box-shadow: 0 0 0 5px rgba(10, 132, 255, 0.22);
-}
-@keyframes fabric-handle-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.18);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(10, 132, 255, 0.06);
-  }
-}
-/* While a connection is being dragged, suppress the pulse on every node
-   so React Flow's own connection-line affordance is the only motion. */
-.react-flow.connecting :where(.react-flow__handle).fabric-handle-source {
-  animation: none;
 }
 
 /* ---------- Left palette ------------------------------------------------- */
@@ -700,4 +685,153 @@ body {
   margin-top: 12px;
   width: 100%;
   justify-content: center;
+}
+
+/* ---------- Validation issues ------------------------------------------- */
+.issues-pill {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  font-family: inherit;
+}
+.issues-pill-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+.issues-pill-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.issues-pill-active {
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.25);
+}
+
+.issues-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 5;
+  width: 300px;
+  max-height: 60%;
+  background: #ffffff;
+  border: 1px solid #d2d2d7;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.issues-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #ececef;
+}
+.issues-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #515154;
+}
+.issues-panel-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: #86868b;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.issues-panel-close:hover {
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+.issues-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  overflow-y: auto;
+}
+.issues-panel-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #1d1d1f;
+}
+.issues-panel-item + .issues-panel-item {
+  border-top: 1px solid #f5f5f7;
+}
+.issues-panel-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+}
+.issues-panel-item-error .issues-panel-dot {
+  background: #dc2626;
+}
+.issues-panel-item-warning .issues-panel-dot {
+  background: #f59e0b;
+}
+.issues-panel-msg {
+  flex: 1;
+  word-break: break-word;
+}
+.issues-panel-reveal {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid #d2d2d7;
+  background: #ffffff;
+  color: #1d1d1f;
+  cursor: pointer;
+  font-family: inherit;
+}
+.issues-panel-reveal:hover {
+  background: #f5f5f7;
+  border-color: #b0b0b6;
+}
+
+.inspector-issues {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+}
+.inspector-issues-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #991b1b;
+  margin-bottom: 6px;
+}
+.inspector-issues-list {
+  margin: 0;
+  padding-left: 18px;
+}
+.inspector-issue {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #7f1d1d;
+}
+.inspector-issue-warning {
+  color: #78350f;
 }

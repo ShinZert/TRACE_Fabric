@@ -23,7 +23,6 @@ export const sampleTrace = {
     { id: "training_loop",  type: "trainingAIModel",     name: "Note Model (RLHF)" },
     { id: "redraft",        type: "restart",             name: "Re-draft" },
     { id: "ehr",            type: "finalOutcome",        name: "Saved to EHR" },
-    { id: "end_1",          type: "endEvent",            name: "" },
   ],
   flows: [
     { id: "flow_1",  from: "start_1",       to: "patient" },
@@ -44,6 +43,5 @@ export const sampleTrace = {
     { id: "flow_16", from: "reject_out",    to: "training_loop" },
     { id: "flow_17", from: "training_loop", to: "redraft" },
     { id: "flow_18", from: "redraft",       to: "draft_note" },
-    { id: "flow_19", from: "ehr",           to: "end_1" },
   ],
 };

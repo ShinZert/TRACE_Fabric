@@ -6,7 +6,7 @@ import { TYPE_STYLES } from "./types";
 export function layoutWithDagre(nodes, edges) {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", nodesep: 35, ranksep: 90, edgesep: 18 });
+  g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 130, edgesep: 30 });
 
   nodes.forEach((n) => {
     const s = TYPE_STYLES[n.data.ftype] || { w: 140, h: 60 };
@@ -35,6 +35,8 @@ const EDGE_DEFAULTS = {
   markerEnd: { type: "arrowclosed", color: "#9ca3af" },
 };
 
+const SIDES = new Set(["top", "right", "bottom", "left"]);
+
 export function traceToFlow(trace) {
   if (!trace) return { nodes: [], edges: [] };
   const nodes = (trace.elements || []).map((el) => ({
@@ -43,13 +45,24 @@ export function traceToFlow(trace) {
     position: { x: 0, y: 0 },
     data: { label: el.name || "", ftype: el.type },
   }));
-  const edges = (trace.flows || []).map((fl) => ({
-    id: fl.id,
-    source: fl.from,
-    target: fl.to,
-    label: fl.name || "",
-    ...EDGE_DEFAULTS,
-  }));
+  const edges = (trace.flows || []).map((fl) => {
+    const fromSide = SIDES.has(fl.from_side) ? fl.from_side : null;
+    const toSide = SIDES.has(fl.to_side) ? fl.to_side : null;
+    const explicit = !!(fromSide || toSide);
+    return {
+      id: fl.id,
+      source: fl.from,
+      target: fl.to,
+      // Anchor to a per-side handle so React Flow's reconnect anchors
+      // line up with the visible line endpoint. Auto defaults to LR
+      // (right → left) which matches dagre's layout direction.
+      sourceHandle: fromSide ? `side-${fromSide}` : "side-right",
+      targetHandle: toSide ? `side-${toSide}` : "side-left",
+      label: fl.name || "",
+      data: { explicitSides: explicit, fromSide, toSide },
+      ...EDGE_DEFAULTS,
+    };
+  });
   return { nodes, edges };
 }
 
@@ -61,12 +74,15 @@ export function flowToTrace(processName, nodes, edges) {
       type: n.data.ftype,
       name: n.data.label || "",
     })),
-    flows: edges.map((e) => ({
-      id: e.id,
-      from: e.source,
-      to: e.target,
-      ...(e.label ? { name: typeof e.label === "string" ? e.label : "" } : {}),
-    })),
+    flows: edges.map((e) => {
+      const flow = { id: e.id, from: e.source, to: e.target };
+      if (e.label) flow.name = typeof e.label === "string" ? e.label : "";
+      if (e.data?.explicitSides) {
+        if (e.data.fromSide) flow.from_side = e.data.fromSide;
+        if (e.data.toSide) flow.to_side = e.data.toSide;
+      }
+      return flow;
+    }),
   };
 }
 

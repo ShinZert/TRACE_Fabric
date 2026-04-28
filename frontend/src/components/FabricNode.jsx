@@ -4,9 +4,12 @@ import { TYPE_STYLES } from "../lib/types";
 import { ShapeSVG } from "../lib/shapes";
 import { EditorContext } from "./editorContext";
 
-// Custom React Flow node — one SVG shape + an HTML label overlay + two
-// connection handles (left=target, right=source). Double-click swaps the
-// label for an inline input; Enter/blur commits, Escape cancels.
+// Custom React Flow node — one SVG shape + an HTML label overlay + four
+// per-side connect handles that only appear on hover (miro/draw.io feel)
+// plus an invisible whole-shape "auto" handle that anchors floating
+// edges. ReactFlow runs in connectionMode="loose" so a single handle per
+// side acts as both source and target. Double-click swaps the label for
+// an inline input; Enter/blur commits, Escape cancels.
 export function FabricNode({ id, data, selected }) {
   const s = TYPE_STYLES[data.ftype];
   const { editingId, finishEdit } = useContext(EditorContext) || {};
@@ -23,6 +26,10 @@ export function FabricNode({ id, data, selected }) {
 
   if (!s) return null;
   const w = s.w, h = s.h;
+  const issues = data.issues || [];
+  const hasIssues = issues.length > 0;
+  const issueTitle = hasIssues ? issues.map((i) => i.message).join("\n") : undefined;
+  const wrapperClassName = hasIssues ? "fabric-node-wrap fabric-node-invalid" : "fabric-node-wrap";
 
   const labelLayer = isEditing ? (
     <input
@@ -86,22 +93,34 @@ export function FabricNode({ id, data, selected }) {
     </div>
   );
 
+  // One handle per side. IDs `side-<name>` map to the from_side / to_side
+  // values flow JSON exposes. connectionMode="loose" on the canvas lets
+  // each one accept incoming connections too.
+  const sides = [
+    { side: "top", pos: Position.Top },
+    { side: "right", pos: Position.Right },
+    { side: "bottom", pos: Position.Bottom },
+    { side: "left", pos: Position.Left },
+  ];
+
   return (
-    <div style={{ width: w, height: h, position: "relative" }}>
+    <div
+      className={wrapperClassName}
+      style={{ width: w, height: h, position: "relative" }}
+      title={issueTitle}
+    >
       <ShapeSVG ftype={data.ftype} w={w} h={h} selected={selected} />
       {labelLayer}
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="fabric-handle fabric-handle-target"
-        title="Connect from another node"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="fabric-handle fabric-handle-source"
-        title="Drag to connect"
-      />
+      {sides.map(({ side, pos }) => (
+        <Handle
+          key={`side-${side}`}
+          id={`side-${side}`}
+          type="source"
+          position={pos}
+          className={`fabric-handle fabric-handle-${side}`}
+          title={`Drag to connect (${side})`}
+        />
+      ))}
     </div>
   );
 }

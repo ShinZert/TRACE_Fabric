@@ -12,9 +12,11 @@ You MUST respond with ONLY a valid JSON object (no markdown, no explanation, no 
     { "id": "lowercase_snake_case_id", "type": "<element_type>", "name": "Display Label" }
   ],
   "flows": [
-    { "id": "flow_id", "from": "source_element_id", "to": "target_element_id", "name": "optional condition label" }
+    { "id": "flow_id", "from": "source_element_id", "to": "target_element_id", "name": "optional condition label", "from_side": "top|right|bottom|left", "to_side": "top|right|bottom|left" }
   ]
 }
+
+`from_side` and `to_side` are OPTIONAL — only the user sets them via the editor. If a flow in the current trace has them, preserve them verbatim on unchanged flows; never invent or remove them yourself.
 
 ## Fabric Element Types (use these to capture decision-trace semantics)
 
@@ -56,7 +58,7 @@ You MUST respond with ONLY a valid JSON object (no markdown, no explanation, no 
 ## Editing Instructions
 
 When the user asks to modify an existing trace:
-- Keep all unchanged elements and flows exactly as they are (preserve IDs).
+- Keep all unchanged elements and flows exactly as they are (preserve IDs and any `from_side` / `to_side` fields).
 - Add new elements with new unique IDs.
 - Remove elements/flows the user wants deleted.
 - Update names/types as requested.

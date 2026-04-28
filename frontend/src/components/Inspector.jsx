@@ -5,12 +5,32 @@ import { TYPE_STYLES } from "../lib/types";
 export function Inspector({
   node,
   edge,
+  issues = [],
   onUpdateNode,
   onDeleteNode,
   onUpdateEdge,
   onDeleteEdge,
 }) {
   if (edge) {
+    const fromSide = edge.data?.explicitSides ? edge.data?.fromSide || "" : "";
+    const toSide = edge.data?.explicitSides ? edge.data?.toSide || "" : "";
+
+    const setSide = (which, value) => {
+      const explicitFrom = which === "from" ? value : fromSide;
+      const explicitTo = which === "to" ? value : toSide;
+      const explicit = !!(explicitFrom || explicitTo);
+      onUpdateEdge(edge.id, {
+        sourceHandle: `side-${explicitFrom || "right"}`,
+        targetHandle: `side-${explicitTo || "left"}`,
+        data: {
+          ...edge.data,
+          explicitSides: explicit,
+          fromSide: explicitFrom || null,
+          toSide: explicitTo || null,
+        },
+      });
+    };
+
     return (
       <div className="inspector">
         <label>Edge ID</label>
@@ -29,6 +49,30 @@ export function Inspector({
           placeholder="e.g., Accept, Modify, Yes, No"
         />
 
+        <label>From side</label>
+        <select
+          value={fromSide}
+          onChange={(e) => setSide("from", e.target.value)}
+        >
+          <option value="">Auto</option>
+          <option value="top">Top</option>
+          <option value="right">Right</option>
+          <option value="bottom">Bottom</option>
+          <option value="left">Left</option>
+        </select>
+
+        <label>To side</label>
+        <select
+          value={toSide}
+          onChange={(e) => setSide("to", e.target.value)}
+        >
+          <option value="">Auto</option>
+          <option value="top">Top</option>
+          <option value="right">Right</option>
+          <option value="bottom">Bottom</option>
+          <option value="left">Left</option>
+        </select>
+
         <button
           className="btn btn-danger inspector-delete"
           onClick={() => onDeleteEdge(edge.id)}
@@ -45,6 +89,21 @@ export function Inspector({
 
   return (
     <div className="inspector">
+      {issues.length > 0 && (
+        <div className="inspector-issues" role="alert">
+          <div className="inspector-issues-title">
+            {issues.length === 1 ? "Issue" : `${issues.length} issues`}
+          </div>
+          <ul className="inspector-issues-list">
+            {issues.map((it, idx) => (
+              <li key={idx} className={`inspector-issue inspector-issue-${it.severity}`}>
+                {it.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <label>ID</label>
       <div className="inspector-readonly">{node.id}</div>
 
