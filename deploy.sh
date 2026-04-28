@@ -5,14 +5,17 @@ set -e
 # Fabric Deploy Script
 # =============================================================================
 # Usage:
-#   ./deploy.sh setup         First-time server setup (installs Docker, clones repo)
-#   ./deploy.sh deploy        Deploy latest changes (git pull + rebuild)
-#   ./deploy.sh logs          Tail live logs
-#   ./deploy.sh status        Show container status
-#   ./deploy.sh restart       Restart app (e.g. after .env change)
-#   ./deploy.sh stop          Stop all containers
-#   ./deploy.sh set-token     Store GitHub token on server for git pull
-#   ./deploy.sh ssh           Open an interactive SSH session
+#   ./deploy.sh setup            First-time server setup (installs Docker, clones repo)
+#   ./deploy.sh login            Log the server into GHCR (run once, after set-token)
+#   ./deploy.sh deploy [TAG]     Deploy a specific image tag (default: latest)
+#                                  e.g. ./deploy.sh deploy v1.2.0
+#                                       ./deploy.sh deploy sha-a1b2c3d
+#   ./deploy.sh logs             Tail live logs
+#   ./deploy.sh status           Show container status
+#   ./deploy.sh restart          Restart app (e.g. after .env change)
+#   ./deploy.sh stop             Stop all containers
+#   ./deploy.sh set-token        Store GitHub token on server for git pull + GHCR auth
+#   ./deploy.sh ssh              Open an interactive SSH session
 # =============================================================================
 
 # --- Load .env ---------------------------------------------------------------
@@ -107,18 +110,42 @@ cmd_setup() {
 cmd_deploy() {
     check_config
 
-    echo -e "${YELLOW}=== Deploying to $DROPLET_IP ===${NC}"
+    local tag="${1:-latest}"
 
-    echo -e "\n${GREEN}[1/3] Pulling latest code...${NC}"
+    echo -e "${YELLOW}=== Deploying tag '$tag' to $DROPLET_IP ===${NC}"
+
+    echo -e "\n${GREEN}[1/4] Updating compose/nginx config from git...${NC}"
     remote "cd $APP_DIR && git pull"
 
-    echo -e "\n${GREEN}[2/3] Building and starting containers...${NC}"
-    remote "cd $APP_DIR && docker compose up -d --build"
+    echo -e "\n${GREEN}[2/4] Pinning TAG=$tag in .env...${NC}"
+    # Replace the existing TAG= line if present, else append. Atomic via temp file.
+    remote "cd $APP_DIR && (grep -v '^TAG=' .env 2>/dev/null; echo 'TAG=$tag') > .env.new && mv .env.new .env"
 
-    echo -e "\n${GREEN}[3/3] Verifying...${NC}"
+    echo -e "\n${GREEN}[3/4] Pulling image from GHCR and restarting...${NC}"
+    remote "cd $APP_DIR && docker compose pull && docker compose up -d"
+
+    echo -e "\n${GREEN}[4/4] Verifying...${NC}"
     remote "cd $APP_DIR && docker compose ps"
 
-    echo -e "\n${GREEN}=== Deploy complete ===${NC}"
+    echo -e "\n${GREEN}=== Deploy complete (tag: $tag) ===${NC}"
+}
+
+cmd_login() {
+    check_config
+
+    if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
+        echo -e "${RED}Error: GITHUB_USER and GITHUB_TOKEN must be set in .env${NC}"
+        echo ""
+        echo "The token needs the 'read:packages' scope to pull from GHCR."
+        echo "Add to your .env:"
+        echo "  GITHUB_USER=your-github-username"
+        echo "  GITHUB_TOKEN=ghp_your-personal-access-token"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}=== Logging server into ghcr.io as $GITHUB_USER ===${NC}"
+    remote "echo '$GITHUB_TOKEN' | docker login ghcr.io -u $GITHUB_USER --password-stdin"
+    echo -e "${GREEN}Done. The droplet can now pull private images from ghcr.io.${NC}"
 }
 
 cmd_logs() {
@@ -181,33 +208,39 @@ cmd_ssh() {
 cmd_help() {
     echo "Fabric Deploy Script"
     echo ""
-    echo "Usage: ./deploy.sh <command>"
+    echo "Usage: ./deploy.sh <command> [args]"
     echo ""
     echo "Commands:"
-    echo "  setup      First-time server setup (installs Docker, clones repo)"
-    echo "  deploy     Deploy latest changes (git pull + rebuild)"
-    echo "  logs       Tail live logs from all containers"
-    echo "  status     Show container status and resource usage"
-    echo "  restart    Restart the app container (e.g. after .env change)"
-    echo "  stop       Stop all containers"
-    echo "  set-token  Store your GitHub token on the server (run once)"
-    echo "  ssh        Open an interactive SSH session to the droplet"
+    echo "  setup           First-time server setup (installs Docker, clones repo)"
+    echo "  login           Log the server into GHCR (run once, after set-token)"
+    echo "  deploy [TAG]    Pull image tag (default: latest) from GHCR and restart"
+    echo "                    e.g. ./deploy.sh deploy v1.2.0"
+    echo "                         ./deploy.sh deploy sha-a1b2c3d"
+    echo "  logs            Tail live logs from all containers"
+    echo "  status          Show container status and resource usage"
+    echo "  restart         Restart the app container (e.g. after .env change)"
+    echo "  stop            Stop all containers"
+    echo "  set-token       Store your GitHub token on the server (run once)"
+    echo "  ssh             Open an interactive SSH session to the droplet"
     echo ""
-    echo "First time? Edit the DROPLET_IP and REPO_URL at the top of this script, then run:"
+    echo "First time? Edit DROPLET_IP and REPO_URL at the top of this script, then run:"
+    echo "  ./deploy.sh setup"
     echo "  ./deploy.sh set-token"
+    echo "  ./deploy.sh login"
     echo "  ./deploy.sh deploy"
 }
 
 # --- Main --------------------------------------------------------------------
 
 case "${1:-}" in
-    setup)   cmd_setup ;;
-    deploy)  cmd_deploy ;;
-    logs)    cmd_logs ;;
-    status)  cmd_status ;;
-    restart) cmd_restart ;;
-    stop)    cmd_stop ;;
+    setup)     cmd_setup ;;
+    login)     cmd_login ;;
+    deploy)    cmd_deploy "${2:-}" ;;
+    logs)      cmd_logs ;;
+    status)    cmd_status ;;
+    restart)   cmd_restart ;;
+    stop)      cmd_stop ;;
     set-token) cmd_set_token ;;
-    ssh)     cmd_ssh ;;
-    *)       cmd_help ;;
+    ssh)       cmd_ssh ;;
+    *)         cmd_help ;;
 esac
