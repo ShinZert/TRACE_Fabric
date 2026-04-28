@@ -4,7 +4,8 @@
 
 ### Prerequisites
 
-- Python 3.10+ ([python.org](https://www.python.org/downloads/))
+- Python 3.12+ ([python.org](https://www.python.org/downloads/))
+- Node.js 20+ ([nodejs.org](https://nodejs.org/)) — required for the frontend
 - Git
 - An OpenAI API key ([platform.openai.com](https://platform.openai.com/api-keys))
 
@@ -12,8 +13,8 @@
 
 ```bash
 # Clone the repo
-git clone <your-repo-url>
-cd bpmn-chatbot
+git clone https://github.com/ShinZert/TRACE_Fabric.git
+cd TRACE_Fabric
 
 # Create a virtual environment
 python -m venv .venv
@@ -24,8 +25,11 @@ source .venv/bin/activate
 # Windows:
 .venv\Scripts\activate
 
-# Install dependencies
+# Install backend dependencies
 pip install -r requirements.txt
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
 
 # Create your .env file
 cp .env.example .env
@@ -34,49 +38,77 @@ cp .env.example .env
 
 ### Environment variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root. The minimum is:
 
 ```
 OPENAI_API_KEY=sk-proj-your-key-here
 SECRET_KEY=generate-a-random-secret-here
 ```
 
-Generate a secret key:
+The app refuses to start without `SECRET_KEY` (predictable cookie keys let attackers forge sessions). Generate one with:
 
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
+Optional overrides (defaults are sensible):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `FLASK_DEBUG` | unset | `1` enables Flask's debugger and uses an ephemeral generated `SECRET_KEY` for local dev |
+| `OPENAI_TIMEOUT` | `60` | Hard timeout (seconds) for OpenAI HTTP calls |
+| `MAX_TRACE_TOKENS` | `16384` | Token cap for trace generation |
+| `MAX_SUMMARY_TOKENS_TEXT` | `4096` | Token cap for text-only summaries |
+| `MAX_SUMMARY_TOKENS_IMAGE` | `8192` | Token cap for image summaries |
+| `RATELIMIT_STORAGE_URI` | `memory://` | Set to a Redis URL for shared rate-limit counters across workers |
+
 ### Run the dev server
 
+The frontend (Vite + React) and backend (Flask) run as two processes in development:
+
 ```bash
+# Terminal 1 — Flask API on :5000
 python app.py
+
+# Terminal 2 — Vite dev server on :5173 (proxies /api/* to Flask, with HMR)
+cd frontend && npm run dev
 ```
 
-Open http://localhost:5000 in your browser. The Flask dev server runs with `debug=True`, so it auto-reloads on file changes.
+Open http://localhost:5173 in your browser. The Flask debugger is opt-in via `FLASK_DEBUG=1`.
+
+For a one-process production-style run, build the bundle once and skip the Vite server:
+
+```bash
+cd frontend && npm run build && cd ..
+python app.py
+# Now open http://localhost:5000 — Flask serves the built bundle from static/dist/
+```
 
 ### Project structure at a glance
 
 ```
-app.py                  # Flask routes (chat, upload, export, sync, reset)
-config.py               # Settings (model, token limits, upload size)
+app.py                          # Flask routes + rate limiting + ProxyFix
+config.py                       # Settings (model, token caps, timeout, secret key)
 prompts/
-  system_prompt.py      # LLM system prompt + edit context template
-  few_shot_examples.py  # 3 few-shot examples included in every request
+  system_prompt.py              # LLM system prompt + edit-context template
+  few_shot_examples.py          # Loader for the JSON few-shot examples
+  few_shot_examples.json        # 3 few-shot examples included in every request
 services/
-  llm_service.py        # OpenAI API calls + JSON extraction
-  schema_validator.py   # Schema + semantic validation
-  bpmn_converter.py     # JSON <-> BPMN XML conversion
-  layout_engine.py      # Auto-layout (topological sort, waypoint routing)
-static/
-  js/app.js             # Frontend logic (chat, bpmn-js modeler, sync)
-  css/style.css         # Styles
+  llm_service.py                # OpenAI calls + JSON extraction
+  schema_validator.py           # Schema + semantic validation
+  image_validator.py            # Pillow-based image sniffing
+frontend/                       # React + Vite frontend (compiled to static/dist/)
+  src/App.jsx                   # Top-level component
+  src/components/Editor.jsx     # React Flow canvas
+  src/components/ChatPanel.jsx  # Chat panel + image drop
+  src/lib/layout.js             # traceToFlow / flowToTrace + dagre auto-layout
 templates/
-  index.html            # Single-page app template
+  index.html                    # Jinja shell that loads the Vite bundle
 nginx/
-  nginx.conf            # Nginx reverse proxy config (used in production)
-Dockerfile              # Container image definition
-docker-compose.yml      # Production orchestration (app + nginx)
+  nginx.conf                    # Nginx reverse proxy config (production)
+Dockerfile                      # Multi-stage build (Node → Python)
+docker-compose.yml              # Production orchestration (app + nginx)
+deploy.sh                       # SSH-based deploy helper
 ```
 
 ---
@@ -132,10 +164,12 @@ ufw enable
 From your droplet (SSH in as `deployer` or `root`):
 
 ```bash
-# Clone the repo
+# Clone the repo. The directory is named `bpmn-chatbot` for compatibility
+# with the existing `deploy.sh` (APP_DIR=/opt/bpmn-chatbot) — legacy from
+# before the project was renamed to Fabric.
 cd /opt
-git clone <your-repo-url> processpilot
-cd processpilot
+git clone <your-repo-url> bpmn-chatbot
+cd bpmn-chatbot
 
 # Create the .env file
 nano .env
@@ -261,7 +295,7 @@ Set up auto-renewal:
 # Add a cron job to renew certificates
 crontab -e
 # Add this line:
-0 3 * * * certbot renew --pre-hook "cd /opt/processpilot && docker compose stop nginx" --post-hook "cd /opt/processpilot && docker compose up -d nginx"
+0 3 * * * certbot renew --pre-hook "cd /opt/bpmn-chatbot && docker compose stop nginx" --post-hook "cd /opt/bpmn-chatbot && docker compose up -d nginx"
 ```
 
 ---
@@ -284,7 +318,7 @@ git push
 
 # 3. Deploy to production
 ssh deployer@YOUR_DROPLET_IP
-cd /opt/processpilot
+cd /opt/bpmn-chatbot
 git pull
 docker compose up -d --build
 ```
@@ -299,7 +333,7 @@ set -e
 
 DROPLET_IP="YOUR_DROPLET_IP"
 DROPLET_USER="deployer"
-APP_DIR="/opt/processpilot"
+APP_DIR="/opt/bpmn-chatbot"
 
 echo "Deploying to $DROPLET_IP..."
 ssh $DROPLET_USER@$DROPLET_IP "cd $APP_DIR && git pull && docker compose up -d --build"
@@ -350,5 +384,5 @@ The `.env` file is gitignored and lives independently on each environment. If yo
 
 1. Add them to `.env.example` (committed to git) as documentation
 2. Add them to your local `.env`
-3. SSH into the droplet and add them to `/opt/processpilot/.env`
+3. SSH into the droplet and add them to `/opt/bpmn-chatbot/.env`
 4. Restart: `docker compose restart app`
