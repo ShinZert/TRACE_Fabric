@@ -3,6 +3,10 @@ services:
     image: ghcr.io/shinzert/trace_fabric:${TAG:-latest}
     build: .
     env_file: .env
+    environment:
+      LOG_DIR: /data
+    volumes:
+      - ./data:/data
     expose:
       - "8000"
     restart: unless-stopped

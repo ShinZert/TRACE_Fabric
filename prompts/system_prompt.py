@@ -35,11 +35,6 @@ You MUST respond with ONLY a valid JSON object (no markdown, no explanation, no 
 
 Fabric does not have separate start/end event markers. The entry point is whichever element has no incoming flow (typically a humanSource, ui, or inputOutput); the trace ends at one or more finalOutcome nodes.
 
-## Generic activity / gateway types (only use when no Fabric type fits)
-
-- task, userTask, serviceTask, scriptTask: Generic activities. Prefer humanSource / fixedAIModel / governanceMechanism / ui where appropriate.
-- exclusiveGateway, parallelGateway: Generic gateways. Prefer decisionPoint for branches in a Fabric trace.
-
 ## Rules
 
 1. Every trace MUST have exactly ONE entry element (the only element with no incoming flow) and at least ONE finalOutcome.

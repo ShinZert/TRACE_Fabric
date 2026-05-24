@@ -31,7 +31,7 @@ canvas         + dagre layout    semantic
                                  validation
 ```
 
-All wire-format between frontend and backend is JSON — there is no BPMN XML round-trip.
+The wire format between frontend and backend is the Fabric trace JSON.
 
 ### Key modules
 
@@ -51,7 +51,6 @@ All wire-format between frontend and backend is JSON — there is no BPMN XML ro
 ### Supported element types
 
 - **Fabric types:** `humanSource`, `inputOutput`, `fixedAIModel`, `trainingAIModel`, `governanceMechanism`, `ui`, `decisionPoint`, `accept`, `modify`, `reject`, `restart`, `finalOutcome`
-- **Generic activities/gateways (rarely used):** `task`, `userTask`, `serviceTask`, `scriptTask`, `exclusiveGateway`, `parallelGateway`
 
 The entry of a trace is the single element with no incoming flow (typically a `humanSource`, `ui`, or `inputOutput`); terminals are `finalOutcome` nodes — there's no separate start/end event type.
 

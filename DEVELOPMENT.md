@@ -164,12 +164,9 @@ ufw enable
 From your droplet (SSH in as `deployer` or `root`):
 
 ```bash
-# Clone the repo. The directory is named `bpmn-chatbot` for compatibility
-# with the existing `deploy.sh` (APP_DIR=/opt/bpmn-chatbot) — legacy from
-# before the project was renamed to Fabric.
 cd /opt
-git clone <your-repo-url> bpmn-chatbot
-cd bpmn-chatbot
+git clone <your-repo-url> trace-fabric
+cd trace-fabric
 
 # Create the .env file
 nano .env
@@ -295,7 +292,7 @@ Set up auto-renewal:
 # Add a cron job to renew certificates
 crontab -e
 # Add this line:
-0 3 * * * certbot renew --pre-hook "cd /opt/bpmn-chatbot && docker compose stop nginx" --post-hook "cd /opt/bpmn-chatbot && docker compose up -d nginx"
+0 3 * * * certbot renew --pre-hook "cd /opt/trace-fabric && docker compose stop nginx" --post-hook "cd /opt/trace-fabric && docker compose up -d nginx"
 ```
 
 ---
@@ -318,7 +315,7 @@ git push
 
 # 3. Deploy to production
 ssh deployer@YOUR_DROPLET_IP
-cd /opt/bpmn-chatbot
+cd /opt/trace-fabric
 git pull
 docker compose up -d --build
 ```
@@ -333,7 +330,7 @@ set -e
 
 DROPLET_IP="YOUR_DROPLET_IP"
 DROPLET_USER="deployer"
-APP_DIR="/opt/bpmn-chatbot"
+APP_DIR="/opt/trace-fabric"
 
 echo "Deploying to $DROPLET_IP..."
 ssh $DROPLET_USER@$DROPLET_IP "cd $APP_DIR && git pull && docker compose up -d --build"
@@ -384,5 +381,5 @@ The `.env` file is gitignored and lives independently on each environment. If yo
 
 1. Add them to `.env.example` (committed to git) as documentation
 2. Add them to your local `.env`
-3. SSH into the droplet and add them to `/opt/bpmn-chatbot/.env`
+3. SSH into the droplet and add them to `/opt/trace-fabric/.env`
 4. Restart: `docker compose restart app`

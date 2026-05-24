@@ -31,7 +31,7 @@ fi
 # Edit these to match your droplet
 DROPLET_IP="YOUR_DROPLET_IP"
 DROPLET_USER="root"
-APP_DIR="/opt/bpmn-chatbot"
+APP_DIR="/opt/trace-fabric"
 REPO_URL="https://github.com/ShinZert/TRACE_Fabric.git"
 # Use Windows OpenSSH so it connects to the Windows ssh-agent
 SSH_CMD="/c/Windows/System32/OpenSSH/ssh.exe"

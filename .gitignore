@@ -16,3 +16,12 @@ Thumbs.db
 
 # Reference flowchart images (binary assets, kept locally only)
 prompts/assets_workflow/
+
+# Live monitoring JSONL (rotated by the app, persisted across container restarts via volume)
+data/
+
+# Offline eval runs (per-timestamp directories)
+evals/results/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/

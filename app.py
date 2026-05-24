@@ -2,7 +2,7 @@
 Weaver — Flask Application
 Generates Fabric decision-trace JSON from natural language descriptions and
 sketches. The frontend (React + React Flow, built via Vite into static/dist/)
-renders the trace directly — no BPMN XML round-trip.
+renders the trace directly.
 """
 
 import base64
@@ -18,6 +18,8 @@ from config import SECRET_KEY, MAX_CONTENT_LENGTH, OPENAI_MODEL
 from services.llm_service import generate_trace, generate_summary
 from services.schema_validator import validate_schema, validate_semantics
 from services.image_validator import validate_image_base64, validate_image_bytes
+from services.event_logger import log_event
+from services.telemetry import generation_metrics, structural_metrics, cost_metrics
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -96,16 +98,31 @@ def _validate_for_render(trace):
     return [], semantic_errors
 
 
-def _trace_response(result, original_message):
+def _trace_response(result, original_message, flow):
     """
     Common LLM-result handling for chat flows. Returns either a finished
     Flask response (on error or success) or None if the caller should keep
     going. Centralises the LLM-error / schema-error / diagram-response
     triad that was repeated for each chat flow.
     """
+    trace = result.get("json")
+    metrics = generation_metrics(
+        trace,
+        usage=result.get("usage"),
+        latency_ms=result.get("latency_ms", 0),
+        parse_error=result.get("error") if trace is None else None,
+    )
+    log_event(
+        "chat_generation",
+        flow=flow,
+        message_len=len(original_message or ""),
+        finish_reason=result.get("finish_reason"),
+        api_error=result.get("error") if trace is None else None,
+        **metrics,
+    )
+
     if result["error"]:
         return jsonify({"error": result["error"]}), 502
-    trace = result["json"]
     schema_errors, warnings = _validate_for_render(trace)
     if schema_errors:
         return jsonify({
@@ -160,7 +177,7 @@ def chat():
             image_base64=image_base64,
             image_mime=image_mime,
         )
-        return _trace_response(result, original_message)
+        return _trace_response(result, original_message, flow="confirm")
 
     # --- Flow D: pending exists + new message → combine and re-summarize ---
     if pending and user_message:
@@ -185,13 +202,21 @@ def chat():
             current_trace=current_trace,
             image_base64=None,
         )
-        return _trace_response(result, user_message)
+        return _trace_response(result, user_message, flow="edit")
 
     # --- Flow B: summarize before generating -------------------------------
     summary_result = generate_summary(
         user_message=user_message,
         image_base64=image_base64,
         image_mime=image_mime,
+    )
+    log_event(
+        "chat_summarize",
+        message_len=len(user_message or ""),
+        has_image=bool(image_base64),
+        api_error=summary_result.get("error"),
+        summary_len=len(summary_result.get("summary") or ""),
+        **cost_metrics(summary_result.get("usage"), summary_result.get("latency_ms", 0)),
     )
     if summary_result["error"]:
         return jsonify({"error": summary_result["error"]}), 502
@@ -225,6 +250,12 @@ def sync():
     # warnings (orphans, dead-ends, etc.) are still allowed through so the
     # user can iterate on them in conversation.
     if schema_errors:
+        log_event(
+            "sync",
+            status="rejected",
+            schema_errors=schema_errors,
+            **structural_metrics(trace),
+        )
         return jsonify({
             "status": "rejected",
             "error": "Cannot sync invalid trace: " + "; ".join(schema_errors),
@@ -233,6 +264,12 @@ def sync():
         }), 400
 
     session["current_trace"] = trace
+    log_event(
+        "sync",
+        status="ok",
+        semantic_warnings=semantic_warnings,
+        **structural_metrics(trace),
+    )
     # The next /api/chat call sees the updated trace via EDIT_CONTEXT_TEMPLATE,
     # so we don't need synthetic "[Trace was edited]" turns here — those just
     # burn slots in the 6-turn conversation window.
@@ -244,10 +281,18 @@ def export_json():
     """Download the current trace as a .json file."""
     trace = session.get("current_trace")
     if not trace:
+        log_event("export", status="empty")
         return jsonify({"error": "No trace to export"}), 404
 
     process_name = trace.get("process_name", "fabric-trace")
     filename = process_name.replace(" ", "_").lower() + ".json"
+
+    log_event(
+        "export",
+        status="ok",
+        process_name=process_name,
+        **structural_metrics(trace),
+    )
 
     return Response(
         _json.dumps(trace, indent=2),
@@ -269,15 +314,22 @@ def upload():
     file_bytes = file.read()
     image_mime, image_error = validate_image_bytes(file_bytes)
     if image_error:
+        log_event("upload", status="rejected", error=image_error, bytes=len(file_bytes))
         return jsonify({"error": image_error}), 400
 
     b64 = base64.b64encode(file_bytes).decode("utf-8")
+    log_event("upload", status="ok", bytes=len(file_bytes), mime=image_mime)
     return jsonify({"image_base64": b64, "image_mime": image_mime})
 
 
 @app.route("/api/reset", methods=["POST"])
 def reset():
     """Reset conversation and trace state."""
+    log_event(
+        "reset",
+        had_trace=bool(session.get("current_trace")),
+        conversation_len=len(session.get("conversation", [])),
+    )
     session["conversation"] = []
     session["current_trace"] = None
     session["pending_confirmation"] = None

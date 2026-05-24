@@ -6,6 +6,7 @@ Handles text input, image input, conversation history, and JSON extraction.
 import json
 import logging
 import re
+import time
 from openai import OpenAI
 
 log = logging.getLogger(__name__)
@@ -116,15 +117,18 @@ def generate_trace(user_message, conversation_history, current_trace=None, image
     """
     messages = _build_messages(conversation_history, user_message, current_trace, image_base64, image_mime)
 
+    start = time.perf_counter()
     try:
         response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=messages,
             max_completion_tokens=MAX_TRACE_TOKENS,
         )
+        latency_ms = int((time.perf_counter() - start) * 1000)
         choice = response.choices[0]
         raw_response = choice.message.content or ""
         finish_reason = choice.finish_reason
+        usage = getattr(response, "usage", None)
 
         parsed = _extract_json(raw_response)
         if parsed is None:
@@ -141,11 +145,29 @@ def generate_trace(user_message, conversation_history, current_trace=None, image
                 "json": None,
                 "raw_response": raw_response,
                 "error": f"Could not extract valid JSON from LLM response{hint}.",
+                "usage": usage,
+                "latency_ms": latency_ms,
+                "finish_reason": finish_reason,
             }
-        return {"json": parsed, "raw_response": raw_response, "error": None}
+        return {
+            "json": parsed,
+            "raw_response": raw_response,
+            "error": None,
+            "usage": usage,
+            "latency_ms": latency_ms,
+            "finish_reason": finish_reason,
+        }
     except Exception as e:
+        latency_ms = int((time.perf_counter() - start) * 1000)
         log.exception("OpenAI call failed")
-        return {"json": None, "raw_response": "", "error": f"LLM API error: {type(e).__name__}: {str(e) or '(empty)'}"}
+        return {
+            "json": None,
+            "raw_response": "",
+            "error": f"LLM API error: {type(e).__name__}: {str(e) or '(empty)'}",
+            "usage": None,
+            "latency_ms": latency_ms,
+            "finish_reason": None,
+        }
 
 
 def _build_summary_messages(user_message, image_base64=None, image_mime=None):
@@ -174,6 +196,7 @@ def _build_summary_messages(user_message, image_base64=None, image_mime=None):
 def generate_summary(user_message, image_base64=None, image_mime=None):
     """Plain-text summary of the user's process description for confirmation."""
     messages = _build_summary_messages(user_message, image_base64, image_mime)
+    start = time.perf_counter()
     try:
         params = {
             "model": OPENAI_MODEL,
@@ -183,18 +206,31 @@ def generate_summary(user_message, image_base64=None, image_mime=None):
             ),
         }
         response = client.chat.completions.create(**params)
+        latency_ms = int((time.perf_counter() - start) * 1000)
 
         message = response.choices[0].message
         finish_reason = response.choices[0].finish_reason
         raw_content = message.content
         refusal = getattr(message, "refusal", None)
+        usage = getattr(response, "usage", None)
 
         summary = raw_content.strip() if raw_content else ""
         if not summary:
             diag = f"finish_reason={finish_reason}, refusal={refusal}, content={raw_content!r}"
             log.warning("Empty summary response: %s", diag)
-            return {"summary": "", "error": f"LLM returned an empty summary ({diag})."}
-        return {"summary": summary, "error": None}
+            return {
+                "summary": "",
+                "error": f"LLM returned an empty summary ({diag}).",
+                "usage": usage,
+                "latency_ms": latency_ms,
+            }
+        return {"summary": summary, "error": None, "usage": usage, "latency_ms": latency_ms}
     except Exception as e:
+        latency_ms = int((time.perf_counter() - start) * 1000)
         log.exception("OpenAI summary call failed")
-        return {"summary": "", "error": f"LLM API error: {str(e)}"}
+        return {
+            "summary": "",
+            "error": f"LLM API error: {str(e)}",
+            "usage": None,
+            "latency_ms": latency_ms,
+        }

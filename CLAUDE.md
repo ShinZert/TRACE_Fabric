@@ -30,15 +30,25 @@ Optional env vars: `FLASK_DEBUG=1` (enables Werkzeug debugger + ephemeral genera
 - **Development:** run `python app.py` AND `npm run dev` in parallel, then open `http://localhost:5173`. Vite proxies `/api/*` to Flask. HMR works.
 - **Production / one-process:** run `npm run build`, then `python app.py`, then open `http://localhost:5000`. Flask serves the built bundle from `static/dist/`.
 
-There is no test suite or linter config.
+```bash
+# Backend tests (pytest)
+pip install -r requirements-dev.txt
+pytest                                       # default — skips live OpenAI tests
+RUN_LIVE_OPENAI=1 pytest -m live             # opt in to live OpenAI smoke tests
+
+# Frontend tests (vitest)
+cd frontend && npm test
+```
+
+No linter config. Live OpenAI tests in `tests/test_live.py` are skipped unless `RUN_LIVE_OPENAI=1` is set.
 
 ## Architecture
 
-**Stack:** Flask backend (Python 3.12, gunicorn in prod) + React 18 frontend (Vite build, React Flow 12 for the editor canvas, dagre for auto-layout). All wire-format between frontend and backend is JSON — there is no BPMN XML round-trip.
+**Stack:** Flask backend (Python 3.12, gunicorn in prod) + React 18 frontend (Vite build, React Flow 12 for the editor canvas, dagre for auto-layout). The wire format between frontend and backend is the Fabric trace JSON described below.
 
 **Request pipeline:** User input → React `App.handleSend` → `POST /api/chat` → `_build_messages()` constructs conversation (system prompt + 3 few-shot examples + last 6 turns + edit context) → OpenAI API → `_extract_json()` parses LLM output → schema + semantic validation → returned as `{ trace, process_name }` → React Flow renders via `traceToFlow()` and `layoutWithDagre()`.
 
-**Edit round-trip:** User edits trace in React Flow editor → editor calls `onTraceCommit(newTrace)` after each user action → `App` tracks `traceDraft` vs `trace` to compute `isDirty` → user clicks "Sync edits" → `POST /api/sync` with the trace JSON → backend rejects (HTTP 400) on schema errors and keeps the previous `current_trace`, otherwise stores it in the session → LLM sees updated trace in next request via `EDIT_CONTEXT_TEMPLATE`. No XML conversion at any step.
+**Edit round-trip:** User edits trace in React Flow editor → editor calls `onTraceCommit(newTrace)` after each user action → `App` tracks `traceDraft` vs `trace` to compute `isDirty` → user clicks "Sync edits" → `POST /api/sync` with the trace JSON → backend rejects (HTTP 400) on schema errors and keeps the previous `current_trace`, otherwise stores it in the session → LLM sees updated trace in next request via `EDIT_CONTEXT_TEMPLATE`.
 
 ### Chat flows (`/api/chat`)
 
@@ -53,10 +63,14 @@ The chat endpoint handles four distinct flows:
 
 - **`app.py`** — Flask routes: `/api/chat` (main pipeline with 4 flows), `/api/upload` (image to base64), `/api/export` (download trace JSON), `/api/sync` (JSON round-trip for manual edits), `/api/reset` (clear session), `/api/health` (liveness probe). Renders `templates/index.html` at `/`. Per-IP rate limiting via Flask-Limiter (30/min, 500/day on chat; 60/min, 500/day on upload; 200/min global default).
 - **`config.py`** — Centralized settings: model (`gpt-5-mini`), conversation window (6 turns = 12 messages), upload limit (16MB), secret key, OpenAI request timeout, and token budgets (`MAX_TRACE_TOKENS=16384`, `MAX_SUMMARY_TOKENS_TEXT=4096`, `MAX_SUMMARY_TOKENS_IMAGE=8192`) — all overridable via env vars. GPT-5-mini does not accept a `temperature` parameter, so none is sent. Image bytes are sniffed via Pillow (`services/image_validator.py`) before being forwarded to OpenAI.
-- **`prompts/system_prompt.py`** — `SYSTEM_PROMPT` defines the JSON output format and the 12 Fabric element types; `SUMMARY_PROMPT` instructs the LLM to produce plain-text process summaries; `EDIT_CONTEXT_TEMPLATE` injects current trace state for edits.
+- **`prompts/system_prompt.py`** — `SYSTEM_PROMPT` defines the JSON output format (including optional `from_side`/`to_side` flow fields) and the Fabric element types; `SUMMARY_PROMPT` instructs the LLM to produce plain-text process summaries; `EDIT_CONTEXT_TEMPLATE` injects current trace state for edits.
 - **`prompts/few_shot_examples.py`** — 3 few-shot examples always included in every request, all using Fabric types. Loaded from `prompts/few_shot_examples.json`.
-- **`services/llm_service.py`** — OpenAI integration; `generate_trace()` for trace generation, `generate_summary()` for the summarize-then-confirm step; `_extract_json()` handles raw JSON, code-fenced JSON, and embedded JSON via brace-matching fallback; `_build_messages()` assembles the full conversation array.
+- **`prompts/workflows.json`** — 20 gold-standard fixtures used by the offline eval harness (`scripts/run_evals.py`). Distinct from `few_shot_examples.json`, which feeds live LLM requests.
+- **`services/llm_service.py`** — OpenAI integration; `generate_trace()` for trace generation, `generate_summary()` for the summarize-then-confirm step. Both return `usage`, `latency_ms`, and `finish_reason` alongside the parsed JSON so the caller can log telemetry. `_extract_json()` handles raw JSON, code-fenced JSON, and embedded JSON via brace-matching fallback; `_build_messages()` assembles the full conversation array.
 - **`services/schema_validator.py`** — Two-pass validation: jsonschema against the Fabric schema, then semantic checks (≥1 finalOutcome, exactly 1 entry node — i.e. a single element with no incoming flow — no dead ends, valid flow refs, no duplicate IDs, finalOutcomes have no outgoing flows). Fabric has no separate start-event type; the entry is identified structurally.
+- **`services/telemetry.py`** — Shared metric primitives (pure functions). `validity_metrics`, `cost_metrics` (tokens + latency only, no USD — convert at analysis time), `structural_metrics` (element/flow counts, branching, path length, cycle flag), `reference_metrics` (offline-only, vs gold). `generation_metrics()` bundles the first three. Used by both the live event logger and `scripts/run_evals.py`.
+- **`services/event_logger.py`** — Append-only JSONL log at `${LOG_DIR}/weaver.jsonl` (default `./data/weaver.jsonl`, rotated at 10MB×10). One line per event: `chat_summarize`, `chat_generation`, `sync`, `export`, `upload`, `reset`. Each line carries a 12-hex anonymous session ID (SHA-256 of a UUID stored in the Flask session). See `MONITORING.md` for the full event schema.
+- **`scripts/run_evals.py`** — Offline eval harness. Runs each fixture in `prompts/workflows.json` through `generate_trace` N times and writes per-run + aggregated metrics to `evals/results/<UTC-timestamp>/`.
 
 ### Frontend modules
 
@@ -79,14 +93,24 @@ The LLM produces (and the editor consumes) the same intermediate JSON schema:
 {
   "process_name": "string",
   "elements": [{ "id": "snake_case_id", "type": "humanSource|fixedAIModel|...", "name": "Display Label" }],
-  "flows": [{ "id": "flow_id", "from": "source_id", "to": "target_id", "name": "optional condition" }]
+  "flows": [
+    {
+      "id": "flow_id",
+      "from": "source_id",
+      "to": "target_id",
+      "name": "optional condition",
+      "from_side": "top|right|bottom|left",
+      "to_side": "top|right|bottom|left"
+    }
+  ]
 }
 ```
+
+`from_side` / `to_side` are optional and only set by the editor when the user attaches an edge to a specific handle. The LLM preserves them verbatim on unchanged flows and never invents them.
 
 Element IDs must match `^[a-z][a-z0-9_]*$`. Supported element types (from `services/schema_validator.py`):
 
 - **Fabric types:** `humanSource`, `inputOutput`, `fixedAIModel`, `trainingAIModel`, `governanceMechanism`, `ui`, `decisionPoint`, `accept`, `modify`, `reject`, `restart`, `finalOutcome`
-- **Generic activities/gateways (rarely used):** `task`, `userTask`, `serviceTask`, `scriptTask`, `exclusiveGateway`, `parallelGateway`
 
 The entry of a trace is whichever element has no incoming flow — typically a `humanSource`, `ui`, or `inputOutput`. Terminal nodes are `finalOutcome`s. There is no dedicated start- or end-event type.
 
@@ -104,17 +128,18 @@ The entry of a trace is whichever element has no incoming flow — typically a `
 
 ### Gotchas
 
-- **Manual node positions ARE preserved** across edits within a session (React Flow tracks positions in nodes state). Only Re-layout or a fresh trace from the LLM clears manual positions — different from the previous bpmn-js setup, where layout was always recomputed.
+- **Manual node positions ARE preserved** across edits within a session (React Flow tracks positions in nodes state). Only Re-layout or a fresh trace from the LLM clears manual positions.
 - **Image inputs skip edit context** — providing an image always treats the request as a fresh generation, even if `current_trace` exists.
 - **`/api/sync` rejects schema-invalid traces** — schema errors return HTTP 400 with the previous `current_trace` echoed back; the editor keeps its draft so the user can fix the issues. Semantic warnings (orphans, dead-ends, etc.) still pass through.
 - **Sync is manual** — users must click "Sync edits" before chatting again, or the LLM operates on the last-synced trace and unsynced visual edits are effectively lost on the next AI generation. The "unsaved edits" pill on the editor toolbar warns about this.
 - **Few-shot examples** are sent with every request — they live in `prompts/few_shot_examples.json` and are loaded by `prompts/few_shot_examples.py`. Keep that JSON in sync with the Fabric type list if the schema changes.
-- **No BPMN export** — the .bpmn export was removed when bpmn-js was retired in favour of React Flow. Export is JSON-only (`/api/export` and the editor's Export JSON button).
+- **Export is JSON-only** — `/api/export` and the editor's Export JSON button. PNG export is available client-side from the editor toolbar.
+- **Every request emits one telemetry event** — `chat_summarize`, `chat_generation`, `sync` (with `status:ok` or `rejected`), `export`, `upload`, `reset` — written by `services/event_logger.py` to `${LOG_DIR}/weaver.jsonl`. The dissertation eval pulls these directly; don't add a code path that calls an LLM without going through `_trace_response` / `generate_summary`, or it will be invisible in the logs.
 
 ## Deployment
 
 Production runs as two containers via `docker-compose.yml`: the Flask app (gunicorn, 2 workers, 120s timeout) on port 8000, fronted by nginx on port 80. The Dockerfile is multi-stage: stage 1 (`node:20-slim`) builds the Vite bundle, stage 2 (`python:3.12-slim`) runs Flask with the bundle copied in.
 
-The `deploy.sh` script wraps SSH-based deploys to a Digital Ocean droplet — `./deploy.sh deploy` does `git pull` + `docker compose up -d --build` on the remote (the multi-stage Dockerfile handles the npm build inside the container, so the host doesn't need Node). See `DEVELOPMENT.md` for full droplet setup, HTTPS via Certbot, and the `set-token` flow for storing a GitHub PAT on the server.
+The `deploy.sh` script wraps SSH-based deploys to a Digital Ocean droplet — `./deploy.sh deploy` does `git pull` + `docker compose up -d --build` on the remote (the multi-stage Dockerfile handles the npm build inside the container, so the host doesn't need Node). The droplet's app directory is `/opt/trace-fabric` (set via `APP_DIR` in `deploy.sh`). See `DEVELOPMENT.md` for full droplet setup, HTTPS via Certbot, and the `set-token` flow for storing a GitHub PAT on the server.
 
-Note: `deploy.sh` references `APP_DIR=/opt/bpmn-chatbot` (legacy name from before the Fabric rename and the React Flow migration).
+Live event logs are written inside the container to `/data/weaver.jsonl`, which is bind-mounted to `./data/` on the host. To pull them off the droplet: `scp droplet:/opt/trace-fabric/data/weaver.jsonl ./`. See `MONITORING.md`.

@@ -86,7 +86,7 @@ def test_sync_semantic_warning_still_passes(client):
         "process_name": "x",
         "elements": [
             {"id": "a", "type": "humanSource", "name": "A"},
-            {"id": "b", "type": "userTask", "name": "B"},
+            {"id": "b", "type": "governanceMechanism", "name": "B"},
         ],
         "flows": [{"id": "f", "from": "a", "to": "b"}],
     }

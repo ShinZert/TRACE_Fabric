@@ -1,6 +1,6 @@
 import jsonschema
 
-BPMN_JSON_SCHEMA = {
+FABRIC_JSON_SCHEMA = {
     "type": "object",
     "required": ["process_name", "elements", "flows"],
     "properties": {
@@ -16,8 +16,6 @@ BPMN_JSON_SCHEMA = {
                     "type": {
                         "type": "string",
                         "enum": [
-                            "task", "userTask", "serviceTask", "scriptTask",
-                            "exclusiveGateway", "parallelGateway",
                             "humanSource", "inputOutput",
                             "fixedAIModel", "trainingAIModel",
                             "governanceMechanism", "ui", "decisionPoint",
@@ -53,10 +51,10 @@ BPMN_JSON_SCHEMA = {
 
 
 def validate_schema(data):
-    """Validate JSON against the BPMN schema. Returns (is_valid, errors)."""
+    """Validate JSON against the Fabric schema. Returns (is_valid, errors)."""
     errors = []
     try:
-        jsonschema.validate(instance=data, schema=BPMN_JSON_SCHEMA)
+        jsonschema.validate(instance=data, schema=FABRIC_JSON_SCHEMA)
     except jsonschema.ValidationError as e:
         errors.append(f"Schema error: {e.message}")
     except jsonschema.SchemaError as e:

@@ -52,7 +52,7 @@ def test_endEvent_no_longer_in_schema(valid_trace):
 def test_missing_finalOutcome_fails_semantics(valid_trace):
     """Trace must have at least one finalOutcome."""
     bad = deepcopy(valid_trace)
-    bad["elements"][2]["type"] = "userTask"
+    bad["elements"][2]["type"] = "governanceMechanism"
     ok, errs = validate_semantics(bad)
     assert not ok
     assert any("finalOutcome" in e for e in errs)
@@ -81,7 +81,7 @@ def test_no_entry_point_fails_semantics(valid_trace):
 
 def test_duplicate_element_id_fails(valid_trace):
     bad = deepcopy(valid_trace)
-    bad["elements"].append({"id": "human", "type": "userTask", "name": "Dupe"})
+    bad["elements"].append({"id": "human", "type": "humanSource", "name": "Dupe"})
     ok, errs = validate_semantics(bad)
     assert not ok
     assert any("Duplicate" in e for e in errs)
@@ -98,7 +98,7 @@ def test_flow_to_unknown_element_fails(valid_trace):
 def test_dead_end_fails(valid_trace):
     """Non-terminal element with no outgoing flow."""
     bad = deepcopy(valid_trace)
-    bad["elements"].append({"id": "stranded", "type": "userTask", "name": "Stranded"})
+    bad["elements"].append({"id": "stranded", "type": "governanceMechanism", "name": "Stranded"})
     bad["flows"].append({"id": "f3", "from": "human", "to": "stranded"})
     ok, errs = validate_semantics(bad)
     assert not ok
@@ -108,7 +108,7 @@ def test_dead_end_fails(valid_trace):
 def test_finalOutcome_with_outgoing_fails(valid_trace):
     """Terminal nodes must not have outgoing flows."""
     bad = deepcopy(valid_trace)
-    bad["elements"].append({"id": "after", "type": "userTask", "name": "After"})
+    bad["elements"].append({"id": "after", "type": "governanceMechanism", "name": "After"})
     bad["flows"].append({"id": "f3", "from": "outcome", "to": "after"})
     # Re-route `after` to a new terminal so the only error is the bad outgoing.
     bad["elements"].append({"id": "outcome2", "type": "finalOutcome", "name": "Done"})
