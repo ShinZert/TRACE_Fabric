@@ -26,8 +26,9 @@ fi
 # -----------------------------------------------------------------------------
 
 # --- Configuration -----------------------------------------------------------
-# Fill in DROPLET_IP after creating the dev droplet on Digital Ocean.
-DROPLET_IP="YOUR_DROPLET_IP"
+# DROPLET_IP is read from .env (kept out of the repo so the address is not
+# published in the public source). Dev shares the prod droplet — only APP_DIR
+# differs. check_config below errors if DROPLET_IP is missing.
 DROPLET_USER="root"
 APP_DIR="/opt/trace_fabric_dev"
 REPO_URL="https://github.com/ShinZert/TRACE_Fabric.git"
@@ -46,7 +47,7 @@ NC='\033[0m' # No Color
 check_config() {
     if [ -z "$DROPLET_IP" ]; then
         echo -e "${RED}Error: DROPLET_IP is not set.${NC}"
-        echo "Edit deploy.sh and fill in your droplet's IP address."
+        echo "Set DROPLET_IP in .env."
         exit 1
     fi
 }
@@ -224,7 +225,7 @@ cmd_help() {
     echo "  set-token       Store your GitHub token on the server (run once)"
     echo "  ssh             Open an interactive SSH session to the droplet"
     echo ""
-    echo "First time? Edit DROPLET_IP and REPO_URL at the top of this script, then run:"
+    echo "First time? Set DROPLET_IP in .env, then run:"
     echo "  ./deploy.sh setup"
     echo "  ./deploy.sh set-token"
     echo "  ./deploy.sh login"
