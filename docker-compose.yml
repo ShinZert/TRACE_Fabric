@@ -17,19 +17,12 @@ services:
       retries: 3
       start_period: 20s
 
-  caddy:
-    image: caddy:2-alpine
+  nginx:
+    image: nginx:alpine
     ports:
-      - "${CADDY_HTTP_PORT:-80}:80"
-      - "${CADDY_HTTPS_PORT:-443}:443"
+      - "${NGINX_PORT:-80}:80"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - app
     restart: unless-stopped
-
-volumes:
-  caddy_data:
-  caddy_config:
