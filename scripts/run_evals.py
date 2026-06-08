@@ -7,11 +7,19 @@ evals/results/<UTC-timestamp>/. The shared metric module
 (services.telemetry) is the single source of truth for what "good" means —
 the live event logger uses the same primitives.
 
+Held-out evaluation: the 3 examples in prompts/few_shot_examples.json are
+sent with every LLM request, so any fixture that also appears there is
+contaminated — the model sees its gold answer in the prompt. Those fixtures
+are excluded by default and every row carries a `held_out` flag. Use
+--include-seen to run them anyway (e.g. to quantify the contamination gap).
+
 Usage:
-    python scripts/run_evals.py                          # all fixtures, N=3
+    python scripts/run_evals.py                          # held-out fixtures, N=3, 6 parallel
     python scripts/run_evals.py --n 5                    # 5 runs each
+    python scripts/run_evals.py --concurrency 1          # sequential (debugging)
     python scripts/run_evals.py --fixtures "NHS,Beam"    # substring filter
     python scripts/run_evals.py --limit 3                # first 3 fixtures only
+    python scripts/run_evals.py --include-seen           # also run few-shot fixtures
 """
 
 from __future__ import annotations
@@ -22,6 +30,7 @@ import json
 import statistics
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +42,7 @@ from services.telemetry import generation_metrics, reference_metrics  # noqa: E4
 
 
 FIXTURES_PATH = REPO_ROOT / "prompts" / "workflows.json"
+FEW_SHOT_PATH = REPO_ROOT / "prompts" / "few_shot_examples.json"
 RESULTS_ROOT = REPO_ROOT / "evals" / "results"
 
 
@@ -41,6 +51,7 @@ RESULTS_ROOT = REPO_ROOT / "evals" / "results"
 PER_RUN_COLUMNS = [
     "process_name",
     "run_idx",
+    "held_out",
     "parsed_ok",
     "schema_pass",
     "semantic_pass",
@@ -60,9 +71,12 @@ PER_RUN_COLUMNS = [
     "has_cycle",
     "element_count_delta",
     "flow_count_delta",
-    "element_type_jaccard_multiset",
     "gold_type_coverage",
-    "final_outcome_recall",
+    "structural_similarity",
+    "type_distribution_similarity",
+    "name_semantic_similarity",
+    "name_type_semantic_similarity",
+    "aligned_type_accuracy",
 ]
 
 NUMERIC_COLUMNS_FOR_AGG = [
@@ -77,16 +91,40 @@ NUMERIC_COLUMNS_FOR_AGG = [
     "max_path_length",
     "element_count_delta",
     "flow_count_delta",
-    "element_type_jaccard_multiset",
     "gold_type_coverage",
-    "final_outcome_recall",
+    "structural_similarity",
+    "type_distribution_similarity",
+    "name_semantic_similarity",
+    "name_type_semantic_similarity",
+    "aligned_type_accuracy",
 ]
 
 BOOL_COLUMNS_FOR_AGG = ["parsed_ok", "schema_pass", "semantic_pass", "has_cycle"]
 
 
-def load_fixtures(path: Path, filter_substr: str | None, limit: int | None):
+def load_seen_keys(path: Path) -> tuple[set[str], set[str]]:
+    """Process names + user messages of the few-shot examples sent with every request."""
+    if not path.exists():
+        return set(), set()
+    examples = json.loads(path.read_text(encoding="utf-8"))
+    names = {ex["assistant"].get("process_name", "") for ex in examples}
+    users = {ex["user"] for ex in examples}
+    return names, users
+
+
+def load_fixtures(path: Path, filter_substr: str | None, limit: int | None, include_seen: bool = False):
+    """Load fixtures, flag few-shot contamination, and (by default) drop seen ones.
+
+    Order matters: substring filter -> seen exclusion -> limit, so --limit N
+    always yields N runnable fixtures.
+    """
     data = json.loads(path.read_text(encoding="utf-8"))
+    seen_names, seen_users = load_seen_keys(FEW_SHOT_PATH)
+    for w in data:
+        w["held_out"] = (
+            w["assistant"]["process_name"] not in seen_names
+            and w["user"] not in seen_users
+        )
     if filter_substr:
         wanted = [s.strip().lower() for s in filter_substr.split(",") if s.strip()]
         data = [
@@ -94,6 +132,13 @@ def load_fixtures(path: Path, filter_substr: str | None, limit: int | None):
             for w in data
             if any(sub in w["assistant"]["process_name"].lower() for sub in wanted)
         ]
+    if not include_seen:
+        seen = [w for w in data if not w["held_out"]]
+        data = [w for w in data if w["held_out"]]
+        if seen:
+            print(f"Excluding {len(seen)} fixture(s) that are also few-shot examples (use --include-seen to run them):")
+            for w in seen:
+                print("  x", w["assistant"]["process_name"])
     if limit is not None:
         data = data[:limit]
     return data
@@ -121,6 +166,15 @@ def run_one(user_message: str, gold: dict) -> dict:
         "finish_reason": result.get("finish_reason"),
         "api_error": result.get("error") if trace is None else None,
     }
+
+
+def run_task(fixture: dict, run_idx: int) -> dict:
+    """run_one plus the fixture's identifying fields — the unit of parallel work."""
+    row = run_one(fixture["user"], fixture["assistant"])
+    row["process_name"] = fixture["assistant"]["process_name"]
+    row["run_idx"] = run_idx
+    row["held_out"] = fixture["held_out"]
+    return row
 
 
 def _scalar(v):
@@ -181,22 +235,31 @@ def write_summary_csv(per_fixture: list[dict], path: Path) -> None:
             writer.writerow({c: _scalar(row.get(c)) for c in columns})
 
 
+def _rates(rows: list[dict]) -> dict:
+    n = len(rows)
+    if not n:
+        return {"parsed_ok": 0.0, "schema_pass": 0.0, "semantic_pass": 0.0}
+    return {
+        "parsed_ok": round(sum(1 for r in rows if r.get("parsed_ok")) / n, 4),
+        "schema_pass": round(sum(1 for r in rows if r.get("schema_pass")) / n, 4),
+        "semantic_pass": round(sum(1 for r in rows if r.get("semantic_pass")) / n, 4),
+    }
+
+
 def write_summary_json(rows: list[dict], per_fixture: list[dict], path: Path, wall_seconds: float) -> None:
-    total_runs = len(rows)
-    schema_pass = sum(1 for r in rows if r.get("schema_pass"))
-    semantic_pass = sum(1 for r in rows if r.get("semantic_pass"))
-    parsed = sum(1 for r in rows if r.get("parsed_ok"))
+    held_out_rows = [r for r in rows if r.get("held_out")]
+    seen_rows = [r for r in rows if not r.get("held_out")]
     total_prompt = sum(r.get("prompt_tokens", 0) or 0 for r in rows)
     total_completion = sum(r.get("completion_tokens", 0) or 0 for r in rows)
     summary = {
-        "total_runs": total_runs,
+        "total_runs": len(rows),
         "fixtures": len(per_fixture),
+        "held_out_runs": len(held_out_rows),
+        "seen_runs": len(seen_rows),
+        "seen_fixtures": sorted({r["process_name"] for r in seen_rows}),
         "wall_seconds": round(wall_seconds, 2),
-        "rates": {
-            "parsed_ok": round(parsed / total_runs, 4) if total_runs else 0.0,
-            "schema_pass": round(schema_pass / total_runs, 4) if total_runs else 0.0,
-            "semantic_pass": round(semantic_pass / total_runs, 4) if total_runs else 0.0,
-        },
+        "rates": _rates(rows),
+        "rates_held_out": _rates(held_out_rows),
         "totals": {
             "prompt_tokens": total_prompt,
             "completion_tokens": total_completion,
@@ -211,16 +274,23 @@ def main():
     parser.add_argument("--n", type=int, default=3, help="Runs per fixture (default 3)")
     parser.add_argument("--fixtures", type=str, default=None, help="Comma-separated substrings to filter fixtures by process_name")
     parser.add_argument("--limit", type=int, default=None, help="Take only the first N fixtures (after --fixtures filter)")
+    parser.add_argument("--concurrency", type=int, default=6, help="Parallel LLM calls in flight (default 6; set 1 for sequential)")
     parser.add_argument("--dry-run", action="store_true", help="List fixtures and exit without calling the LLM")
+    parser.add_argument(
+        "--include-seen",
+        action="store_true",
+        help="Also run fixtures that appear in few_shot_examples.json (contaminated - the model sees their gold answer in the prompt)",
+    )
     args = parser.parse_args()
 
-    fixtures = load_fixtures(FIXTURES_PATH, args.fixtures, args.limit)
+    fixtures = load_fixtures(FIXTURES_PATH, args.fixtures, args.limit, include_seen=args.include_seen)
     if not fixtures:
         print("No fixtures matched filter.", file=sys.stderr)
         return 1
     print(f"Running {len(fixtures)} fixture(s) x N={args.n} = {len(fixtures) * args.n} LLM calls")
     for w in fixtures:
-        print("  -", w["assistant"]["process_name"])
+        tag = "" if w["held_out"] else "  [SEEN - in few-shot prompt]"
+        print("  -", w["assistant"]["process_name"] + tag)
     if args.dry_run:
         return 0
 
@@ -228,22 +298,29 @@ def main():
     run_dir.mkdir(parents=True, exist_ok=True)
     print(f"Writing to {run_dir.relative_to(REPO_ROOT)}")
 
+    tasks = [(w, i) for w in fixtures for i in range(args.n)]
     rows: list[dict] = []
     started = time.perf_counter()
-    for w in fixtures:
-        name = w["assistant"]["process_name"]
-        gold = w["assistant"]
-        prompt = w["user"]
-        for i in range(args.n):
-            t0 = time.perf_counter()
-            row = run_one(prompt, gold)
-            row["process_name"] = name
-            row["run_idx"] = i
+    workers = max(1, args.concurrency)
+    print(f"Concurrency: {workers} parallel call(s) in flight")
+    if workers > 1:
+        # Warm the embedding model once so worker threads don't race its lazy load.
+        try:
+            from services.telemetry import _get_embed_model
+            _get_embed_model()
+        except Exception:
+            pass  # semantic metrics will report None if the deps are missing
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(run_task, w, i): (w["assistant"]["process_name"], i) for w, i in tasks}
+        for fut in as_completed(futures):
+            name, i = futures[fut]
+            row = fut.result()
             rows.append(row)
-            dur = time.perf_counter() - t0
             ok = "ok" if row["semantic_pass"] else "FAIL"
-            print(f"  [{name} run {i}] {ok} {dur:.1f}s tokens={row['total_tokens']}")
+            print(f"  [{len(rows)}/{len(tasks)}] {name} run {i}: {ok} tokens={row['total_tokens']}")
 
+    # Deterministic output order regardless of completion order.
+    rows.sort(key=lambda r: (r["process_name"], r["run_idx"]))
     wall = time.perf_counter() - started
     write_runs_csv(rows, run_dir / "runs.csv")
     per_fixture = aggregate_per_fixture(rows)

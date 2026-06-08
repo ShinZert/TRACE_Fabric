@@ -54,59 +54,64 @@ The wire format between frontend and backend is the Fabric trace JSON.
 
 The entry of a trace is the single element with no incoming flow (typically a `humanSource`, `ui`, or `inputOutput`); terminals are `finalOutcome` nodes — there's no separate start/end event type.
 
-## Getting started
+## Run locally
 
-### Prerequisites
-
-- Python 3.12+
-- Node.js 20+ (for the frontend dev server / build)
-- An OpenAI API key
-
-### Installation
+**Prerequisites:** Python 3.12+, Node.js 20+, an OpenAI API key.
 
 ```bash
+# 1. Clone + install
 git clone https://github.com/ShinZert/TRACE_Fabric.git
 cd TRACE_Fabric
-
-# Backend deps
 pip install -r requirements.txt
+(cd frontend && npm install)
 
-# Frontend deps
-cd frontend && npm install && cd ..
+# 2. Configure .env
+cp .env.example .env
+#   set OPENAI_API_KEY=sk-proj-...
+#   set SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
 
-# Environment
-cp .env.example .env  # then edit and add your keys
-```
+# 3a. Dev mode (HMR) — open http://localhost:5173
+python app.py                          # terminal 1 (Flask API on :5000)
+cd frontend && npm run dev             # terminal 2 (Vite proxies /api/* to Flask)
 
-`.env` requires at minimum:
-
-```
-OPENAI_API_KEY=sk-proj-...
-SECRET_KEY=<a random hex string — generate with `python -c "import secrets; print(secrets.token_hex(32))"`>
-```
-
-The app **refuses to start without `SECRET_KEY`** in production. For quick local hacking, set `FLASK_DEBUG=1` to use an ephemeral generated key (and to enable Flask's debugger).
-
-### Run
-
-Two modes:
-
-**Development (HMR)** — run both processes in parallel and open <http://localhost:5173>:
-
-```bash
-# Terminal 1 — Flask API on :5000
-python app.py
-
-# Terminal 2 — Vite dev server on :5173 (proxies /api/* to Flask)
-cd frontend && npm run dev
-```
-
-**Production / one-process** — build the bundle once, then run Flask alone and open <http://localhost:5000>:
-
-```bash
-cd frontend && npm run build && cd ..
+# 3b. One-process mode — open http://localhost:5000
+(cd frontend && npm run build)
 python app.py
 ```
+
+The app **refuses to start without `SECRET_KEY`**. For quick hacking, set `FLASK_DEBUG=1` to skip that check and enable Flask's debugger.
+
+## Deploy to a Digital Ocean droplet
+
+The droplet runs the prebuilt GHCR image via `docker compose` (Flask on :8000 behind nginx on :80). `deploy.sh` wraps all SSH steps.
+
+**Prerequisites:** an Ubuntu droplet with SSH key access as `root`, plus a GitHub PAT with `read:packages`.
+
+```bash
+# 1. Configure local .env (already needed for the app)
+#   DROPLET_IP=1.2.3.4
+#   GITHUB_USER=your-gh-username
+#   GITHUB_TOKEN=ghp_...
+
+# 2. One-time server bootstrap (installs Docker, clones repo, opens firewall)
+./deploy.sh setup
+./deploy.sh set-token        # writes the PAT into the droplet's git remote
+./deploy.sh login            # docker login ghcr.io on the droplet
+
+# 3. Create the remote .env on the droplet
+./deploy.sh ssh
+#   on the droplet:
+#     nano /opt/trace-fabric/.env
+#     # add OPENAI_API_KEY and SECRET_KEY (see local .env above)
+#     exit
+
+# 4. Deploy (pulls latest image from GHCR and restarts)
+./deploy.sh deploy           # or: ./deploy.sh deploy v1.2.0
+```
+
+The app is then live at `http://<DROPLET_IP>/`. For HTTPS via Certbot see `DEVELOPMENT.md`.
+
+Other useful commands: `./deploy.sh logs` (tail), `./deploy.sh status`, `./deploy.sh restart` (after `.env` change), `./deploy.sh stop`.
 
 ## Usage
 

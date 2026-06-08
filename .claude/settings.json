@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(jupyter nbconvert *)",
+      "Bash(echo \"EXIT $?\")",
+      "Bash(python - *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Repositories\\TRACE_Fabric\\evals"
+    ]
+  }
+}

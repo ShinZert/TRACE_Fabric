@@ -48,11 +48,24 @@ Outputs:
 - `summary.csv` — one row per fixture. Mean / median / stdev across the N runs for every numeric metric, and pass-rate for boolean metrics.
 - `summary.json` — overall pass rates and totals (tokens, cost, wall-clock) for the run.
 
-Reference metrics (offline-only):
+Reference (fidelity) metrics (offline-only). Two axes, reported separately and never aggregated — there is no principled weighting across them. Method follows the multi-dimensional similarity suite of Matei et al. (2026).
 
-- `element_count_delta` / `flow_count_delta` — predicted minus gold.
-- `element_type_jaccard_multiset` — multiset Jaccard on element types. 1.0 = identical type distribution.
-- `gold_type_coverage` — fraction of gold element types present in the prediction.
-- `final_outcome_recall` — fraction of gold `finalOutcome` names matched by token overlap (threshold 0.5) in the prediction.
+Descriptive:
+
+- `element_count_delta` / `flow_count_delta` — predicted minus gold (over/under-generation tendency, not a score).
+- `gold_type_coverage` — fraction of gold element types present in the prediction (type recall).
+
+Shape (name-agnostic):
+
+- `structural_similarity` — mean of ratio-similarities over node count, edge count, density, mean degree, plus `|Pearson|` of the padded degree sequences. 1.0 = identical topology.
+- `type_distribution_similarity` — `1 − Jensen-Shannon divergence` over element-type frequencies. 1.0 = identical compositional mix of Fabric types.
+
+Meaning (label-aware, embedding-based):
+
+- `name_semantic_similarity` — cosine of element-name embeddings (`all-MiniLM-L6-v2`) under optimal (Hungarian) gold↔pred assignment, normalised by the larger side.
+- `name_type_semantic_similarity` — same, over combined `"type: name"` representations.
+- `aligned_type_accuracy` — share of name-aligned pairs that also share a Fabric type.
+
+The three meaning metrics need `sentence-transformers` + `scipy` (eval-only); they are `None` when those packages are absent, so the live logger never imports them.
 
 The eval harness and the live logger share `services/telemetry.py`, so "what counts as a good trace" is defined in exactly one place.
