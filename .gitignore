@@ -17,6 +17,9 @@ Thumbs.db
 # Reference flowchart images (binary assets, kept locally only)
 prompts/assets_workflow/
 
+# Fabric 1.0 workflows (kept locally only)
+prompts/fabric1.0_workflows/
+
 # Live monitoring JSONL (rotated by the app, persisted across container restarts via volume)
 data/
 
