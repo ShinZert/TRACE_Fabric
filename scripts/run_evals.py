@@ -2,7 +2,8 @@
 Offline eval harness for the Fabric trace pipeline.
 
 Runs each fixture in prompts/workflows.json through llm_service.generate_trace
-N times (default 3) and writes per-run metrics + an aggregated summary to
+N times (default 3) and writes per-run metrics, an aggregated summary, and the
+raw generated trace JSON (traces/<slug>__run<idx>.json) to
 evals/results/<UTC-timestamp>/. The shared metric module
 (services.telemetry) is the single source of truth for what "good" means —
 the live event logger uses the same primitives.
@@ -165,6 +166,9 @@ def run_one(user_message: str, gold: dict) -> dict:
         **ref,
         "finish_reason": result.get("finish_reason"),
         "api_error": result.get("error") if trace is None else None,
+        # Raw generated trace, kept for the per-run JSON dump. Not a CSV column
+        # (write_runs_csv only emits PER_RUN_COLUMNS), so it's ignored there.
+        "trace": trace,
     }
 
 
@@ -182,6 +186,43 @@ def _scalar(v):
     if isinstance(v, (dict, list)):
         return json.dumps(v, ensure_ascii=False)
     return v
+
+
+def _slug(name: str) -> str:
+    """Filesystem-safe slug from a process name (collapses runs of non-alnum)."""
+    out = "".join(c.lower() if c.isalnum() else "_" for c in name or "")
+    while "__" in out:
+        out = out.replace("__", "_")
+    return out.strip("_") or "trace"
+
+
+def write_traces(rows: list[dict], traces_dir: Path) -> None:
+    """Dump each run's generated trace as a bare Fabric trace JSON.
+
+    Each file is the raw trace ({process_name, elements, flows}) with no
+    wrapper, so it imports directly into Weaver and re-syncs cleanly — the
+    backend schema sets additionalProperties:false, so any extra top-level
+    key would be rejected on /api/sync. The verdict (parsed/schema/semantic
+    pass + errors) lives in runs.csv, keyed by the same process_name +
+    run_idx as the filename, so nothing is lost.
+
+    One file per run: <process-slug>__run<idx>.json. Failed / parse-error
+    runs (trace is None) get a small stub recording the error instead of a
+    trace — there is no graph to import for those.
+    """
+    traces_dir.mkdir(parents=True, exist_ok=True)
+    for row in rows:
+        fname = f"{_slug(row.get('process_name'))}__run{row.get('run_idx', 0)}.json"
+        trace = row.get("trace")
+        payload = trace if trace is not None else {
+            "_note": "no trace — run failed before producing valid JSON",
+            "process_name": row.get("process_name"),
+            "run_idx": row.get("run_idx"),
+            "errors": row.get("errors"),
+        }
+        (traces_dir / fname).write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
 
 def write_runs_csv(rows: list[dict], path: Path) -> None:
@@ -326,7 +367,9 @@ def main():
     per_fixture = aggregate_per_fixture(rows)
     write_summary_csv(per_fixture, run_dir / "summary.csv")
     write_summary_json(rows, per_fixture, run_dir / "summary.json", wall)
+    write_traces(rows, run_dir / "traces")
     print(f"Done in {wall:.1f}s. See {run_dir.relative_to(REPO_ROOT)}/summary.json for headline numbers.")
+    print(f"Per-run trace JSON in {run_dir.relative_to(REPO_ROOT)}/traces/")
     return 0
 
 
