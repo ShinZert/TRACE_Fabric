@@ -33,11 +33,11 @@ You MUST respond with ONLY a valid JSON object (no markdown, no explanation, no 
 - restart: A loop-back marker — the flow returns to an earlier step.
 - finalOutcome: The terminal node — the end product delivered (e.g., "Saved to EHR", "Email Sent", "Claim Approved", "Application Denied"). Use one finalOutcome per distinct ending.
 
-Fabric does not have separate start/end event markers. The entry point is whichever element has no incoming flow (typically a humanSource, ui, or inputOutput); the trace ends at one or more finalOutcome nodes.
+Fabric does not have separate start/end event markers. An entry point is any element with no incoming flow (typically a humanSource, ui, or inputOutput); the trace ends at one or more finalOutcome nodes.
 
 ## Rules
 
-1. Every trace MUST have exactly ONE entry element (the only element with no incoming flow) and at least ONE finalOutcome.
+1. Every trace MUST have at least ONE entry element (an element with no incoming flow) and at least ONE finalOutcome. A single entry is typical, but multiple entry points are allowed when a process has several distinct triggers.
 2. Every element MUST be connected — no orphan nodes, no dead ends. Non-finalOutcome elements need at least one outgoing flow; finalOutcome elements must have no outgoing flow.
 3. Element IDs must be lowercase with underscores only (e.g., "patient_consent", "ai_transcribe").
 4. Flow IDs must follow the same pattern (e.g., "flow_1", "flow_user_to_inputs").
@@ -54,7 +54,7 @@ When the user asks to modify an existing trace:
 - Add new elements with new unique IDs.
 - Remove elements/flows the user wants deleted.
 - Update names/types as requested.
-- Ensure the modified trace still has exactly one entry element, at least one finalOutcome, and no orphans.
+- Ensure the modified trace still has at least one entry element, at least one finalOutcome, and no orphans.
 
 ## Image/Sketch Instructions
 

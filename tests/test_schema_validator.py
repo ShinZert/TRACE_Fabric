@@ -58,14 +58,15 @@ def test_missing_finalOutcome_fails_semantics(valid_trace):
     assert any("finalOutcome" in e for e in errs)
 
 
-def test_multiple_entry_points_fails_semantics(valid_trace):
-    """Two elements with no incoming flow → ambiguous start."""
-    bad = deepcopy(valid_trace)
-    bad["elements"].append({"id": "loose", "type": "humanSource", "name": "Loose"})
-    bad["flows"].append({"id": "f3", "from": "loose", "to": "model"})
-    ok, errs = validate_semantics(bad)
-    assert not ok
-    assert any("entry" in e.lower() for e in errs)
+def test_multiple_entry_points_allowed(valid_trace):
+    """Two elements with no incoming flow is permitted — multiple entry
+    points no longer fail semantics (only zero entries / a pure cycle does)."""
+    trace = deepcopy(valid_trace)
+    trace["elements"].append({"id": "loose", "type": "humanSource", "name": "Loose"})
+    trace["flows"].append({"id": "f3", "from": "loose", "to": "model"})
+    ok, errs = validate_semantics(trace)
+    assert ok
+    assert not any("entry" in e.lower() for e in errs)
 
 
 def test_no_entry_point_fails_semantics(valid_trace):

@@ -68,8 +68,8 @@ TERMINAL_TYPES = {"finalOutcome"}
 def validate_semantics(data):
     """Semantic validation for Fabric trace correctness. Returns (is_valid, errors).
 
-    Fabric does not use a dedicated start-event marker. Instead, the entry
-    point is identified structurally as the single element with no incoming
+    Fabric does not use a dedicated start-event marker. Instead, entry
+    points are identified structurally as elements with no incoming
     flows. This keeps the ontology focused on AI-workflow primitives
     (humanSource, fixedAIModel, finalOutcome, …).
     """
@@ -114,13 +114,10 @@ def validate_semantics(data):
         if flow["to"] in incoming:
             incoming[flow["to"]] += 1
 
-    # Exactly one entry point — the element with no incoming flows.
+    # At least one entry point — the element with no incoming flows.
     entry_ids = [eid for eid in element_ids if incoming.get(eid, 0) == 0]
     if len(entry_ids) == 0 and elements:
         errors.append("Process has no entry point — every element has an incoming flow (cycle).")
-    elif len(entry_ids) > 1:
-        joined = ", ".join(sorted(entry_ids))
-        errors.append(f"Process has multiple entry points ({joined}); exactly 1 is required.")
 
     # Non-terminal elements must have ≥1 outgoing flow
     for el in elements:

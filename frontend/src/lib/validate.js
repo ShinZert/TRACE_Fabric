@@ -4,8 +4,8 @@ import { TYPE_STYLES } from "./types";
 // in the browser so the editor can flag problems instantly, without waiting
 // for /api/sync. The backend remains authoritative — this is a UX layer.
 //
-// Fabric has no dedicated start-event type. The entry point is identified
-// structurally as the single element with no incoming flows.
+// Fabric has no dedicated start-event type. Entry points are identified
+// structurally as elements with no incoming flows; multiple are allowed.
 
 const TERMINAL_TYPES = new Set(["finalOutcome"]);
 
@@ -21,8 +21,6 @@ function buildMessage(code, ctx) {
   switch (code) {
     case "no_entry":
       return "There's no starting point — every step has something leading into it (a cycle).";
-    case "multiple_entries":
-      return `More than one starting point. '${ctx.label}' has nothing leading into it — connect it from another step.`;
     case "no_terminal":
       return "The diagram has no final outcome. Add a Final outcome to mark where the workflow ends.";
     case "dead_end":
@@ -81,7 +79,9 @@ export function validateTrace(trace) {
     });
   }
 
-  // Entry-point check: exactly one element with no incoming flows.
+  // Entry-point check: at least one element with no incoming flows.
+  // Multiple entry points are permitted; only a pure cycle (zero entries)
+  // is an error.
   const entryNodes = elements.filter((el) => (incoming.get(el.id) || 0) === 0);
   if (elements.length > 0 && entryNodes.length === 0) {
     push({
@@ -89,15 +89,6 @@ export function validateTrace(trace) {
       severity: SEVERITY.error,
       message: buildMessage("no_entry"),
     });
-  } else if (entryNodes.length > 1) {
-    for (const el of entryNodes) {
-      push({
-        code: "multiple_entries",
-        severity: SEVERITY.warning,
-        nodeId: el.id,
-        message: buildMessage("multiple_entries", { label: displayName(el) }),
-      });
-    }
   }
 
   // Duplicate ids
