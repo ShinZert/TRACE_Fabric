@@ -64,8 +64,7 @@ Meaning (label-aware, embedding-based):
 
 - `name_semantic_similarity` — cosine of element-name embeddings (`all-MiniLM-L6-v2`) under optimal (Hungarian) gold↔pred assignment, normalised by the larger side.
 - `name_type_semantic_similarity` — same, over combined `"type: name"` representations.
-- `aligned_type_accuracy` — share of name-aligned pairs that also share a Fabric type.
 
-The three meaning metrics need `sentence-transformers` + `scipy` (eval-only); they are `None` when those packages are absent, so the live logger never imports them.
+The two meaning metrics need `sentence-transformers` + `scipy` (eval-only); they are `None` when those packages are absent, so the live logger never imports them.
 
 The eval harness and the live logger share `services/telemetry.py`, so "what counts as a good trace" is defined in exactly one place.

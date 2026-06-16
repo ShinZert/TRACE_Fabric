@@ -188,8 +188,7 @@ def generation_metrics(trace, usage, latency_ms, parse_error=None):
 # them, and a single mean would bury the shape-vs-meaning attribution.
 #
 #   Shape   (name-agnostic): structural_similarity, type_distribution_similarity
-#   Meaning (label-aware):   name_semantic_similarity,
-#                            name_type_semantic_similarity, aligned_type_accuracy
+#   Meaning (label-aware):   name_semantic_similarity, name_type_semantic_similarity
 #
 # Method follows the multi-dimensional similarity suite of Matei et al. (2026):
 # ratio-based topology stats + degree-sequence correlation (structural),
@@ -301,7 +300,6 @@ def _get_embed_model():
 _SEMANTIC_KEYS = (
     "name_semantic_similarity",
     "name_type_semantic_similarity",
-    "aligned_type_accuracy",
 )
 
 
@@ -310,8 +308,7 @@ def _semantic_alignment(pred_elements, gold_elements):
 
     Element labels are embedded with all-MiniLM-L6-v2 and matched gold<->pred to
     maximise total cosine; semantic-similarity scores normalise by the larger
-    side so missing/extra elements drag the score down. `aligned_type_accuracy`
-    is the share of name-aligned pairs that also share a Fabric type.
+    side so missing/extra elements drag the score down.
 
     Returns Nones if sentence-transformers/scipy are unavailable — the metric is
     skipped rather than faked, and the live path never triggers the import.
@@ -336,27 +333,19 @@ def _semantic_alignment(pred_elements, gold_elements):
             p_emb = model.encode(pred_strs, normalize_embeddings=True)
         cos = g_emb @ p_emb.T  # normalised embeddings -> dot product is cosine
         rows, cols = linear_sum_assignment(-cos)
-        return cos, rows, cols, float(cos[rows, cols].sum()) / denom
+        return float(cos[rows, cols].sum()) / denom
 
     g_names = [el.get("name", "") for el in gold_elements]
     p_names = [el.get("name", "") for el in pred_elements]
-    _, rows, cols, name_sim = aligned_score(g_names, p_names)
-
-    same_type = sum(
-        1
-        for r, c in zip(rows, cols)
-        if gold_elements[r].get("type") == pred_elements[c].get("type")
-    )
-    type_acc = same_type / len(rows) if len(rows) else 0.0
+    name_sim = aligned_score(g_names, p_names)
 
     g_nt = [f"{el.get('type', '')}: {el.get('name', '')}" for el in gold_elements]
     p_nt = [f"{el.get('type', '')}: {el.get('name', '')}" for el in pred_elements]
-    _, _, _, name_type_sim = aligned_score(g_nt, p_nt)
+    name_type_sim = aligned_score(g_nt, p_nt)
 
     return {
         "name_semantic_similarity": round(max(0.0, name_sim), 4),
         "name_type_semantic_similarity": round(max(0.0, name_type_sim), 4),
-        "aligned_type_accuracy": round(type_acc, 4),
     }
 
 
@@ -364,7 +353,7 @@ def reference_metrics(predicted, gold):
     """Fidelity of a predicted trace vs a gold trace from workflows.json.
 
     Reports each dimension on its own — count deltas (descriptive), gold type
-    coverage, the two shape similarities, and the three meaning metrics. The
+    coverage, the two shape similarities, and the two meaning metrics. The
     axes are deliberately NOT collapsed into a single fidelity score.
     """
     gold_elements = gold.get("elements", [])

@@ -38,6 +38,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+from config import OPENAI_MODEL  # noqa: E402
 from services.llm_service import generate_trace  # noqa: E402
 from services.telemetry import generation_metrics, reference_metrics  # noqa: E402
 
@@ -53,6 +54,7 @@ PER_RUN_COLUMNS = [
     "process_name",
     "run_idx",
     "held_out",
+    "model",
     "parsed_ok",
     "schema_pass",
     "semantic_pass",
@@ -77,7 +79,6 @@ PER_RUN_COLUMNS = [
     "type_distribution_similarity",
     "name_semantic_similarity",
     "name_type_semantic_similarity",
-    "aligned_type_accuracy",
 ]
 
 NUMERIC_COLUMNS_FOR_AGG = [
@@ -97,7 +98,6 @@ NUMERIC_COLUMNS_FOR_AGG = [
     "type_distribution_similarity",
     "name_semantic_similarity",
     "name_type_semantic_similarity",
-    "aligned_type_accuracy",
 ]
 
 BOOL_COLUMNS_FOR_AGG = ["parsed_ok", "schema_pass", "semantic_pass", "has_cycle"]
@@ -178,6 +178,7 @@ def run_task(fixture: dict, run_idx: int) -> dict:
     row["process_name"] = fixture["assistant"]["process_name"]
     row["run_idx"] = run_idx
     row["held_out"] = fixture["held_out"]
+    row["model"] = OPENAI_MODEL
     return row
 
 
@@ -293,6 +294,7 @@ def write_summary_json(rows: list[dict], per_fixture: list[dict], path: Path, wa
     total_prompt = sum(r.get("prompt_tokens", 0) or 0 for r in rows)
     total_completion = sum(r.get("completion_tokens", 0) or 0 for r in rows)
     summary = {
+        "model": OPENAI_MODEL,
         "total_runs": len(rows),
         "fixtures": len(per_fixture),
         "held_out_runs": len(held_out_rows),
@@ -328,6 +330,7 @@ def main():
     if not fixtures:
         print("No fixtures matched filter.", file=sys.stderr)
         return 1
+    print(f"Model: {OPENAI_MODEL}")
     print(f"Running {len(fixtures)} fixture(s) x N={args.n} = {len(fixtures) * args.n} LLM calls")
     for w in fixtures:
         tag = "" if w["held_out"] else "  [SEEN - in few-shot prompt]"
