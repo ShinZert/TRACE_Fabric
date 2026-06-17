@@ -44,6 +44,8 @@ The wire format between frontend and backend is the Fabric trace JSON.
 | `services/llm_service.py` | OpenAI integration with JSON extraction (raw, code-fenced, brace-matching fallback) |
 | `services/schema_validator.py` | Two-pass validation — jsonschema + semantic checks (orphans, flow refs, duplicates, terminal nodes) |
 | `services/image_validator.py` | Pillow-based image sniffing — only PNG/JPEG/GIF/WEBP reach the model |
+| `services/event_logger.py` + `services/telemetry.py` | Append-only JSONL event log + shared metric primitives — one line per request (see `MONITORING.md`) |
+| `scripts/run_evals.py` | Offline eval harness — runs the 20 gold fixtures in `prompts/workflows.json` and writes metrics to `evals/results/` |
 | `frontend/src/App.jsx` | Top-level React component wiring chat → editor → `/api/sync` |
 | `frontend/src/components/Editor.jsx` | React Flow canvas with palette, undo/redo, keyboard shortcuts |
 | `frontend/src/lib/layout.js` | `traceToFlow` / `flowToTrace` + dagre auto-layout |
@@ -80,6 +82,24 @@ python app.py
 ```
 
 The app **refuses to start without `SECRET_KEY`**. For quick hacking, set `FLASK_DEBUG=1` to skip that check and enable Flask's debugger.
+
+## Tests & evaluation
+
+```bash
+# Backend (pytest) — live OpenAI tests are skipped unless opted in
+pip install -r requirements-dev.txt
+pytest                              # default — skips live OpenAI calls
+RUN_LIVE_OPENAI=1 pytest -m live    # opt in to live OpenAI smoke tests
+
+# Frontend (vitest)
+cd frontend && npm test
+
+# Offline eval harness — runs the 20 gold fixtures through the model,
+# writes per-run + aggregated metrics to evals/results/<UTC-timestamp>/
+python scripts/run_evals.py
+```
+
+Every live request also emits one telemetry event (tokens, latency, structural metrics) to `${LOG_DIR}/weaver.jsonl`. See `MONITORING.md` for the event schema and `DEVELOPMENT.md` for droplet setup and HTTPS.
 
 ## Deploy to a Digital Ocean droplet
 
