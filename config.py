@@ -34,3 +34,10 @@ if not SECRET_KEY:
             "starting the app. For local development, set FLASK_DEBUG=1 to use "
             "an ephemeral generated key."
         )
+
+# APP_PASSWORD gates the whole app behind a single shared password. Leave it
+# unset (the default) for open access — existing behaviour. When set, every
+# /api/* endpoint except the liveness/auth probes returns 401 until the client
+# posts the correct password to /api/login, which flips an `authed` flag on the
+# (SECRET_KEY-signed) session cookie. This is a shared gate, not per-user auth.
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")

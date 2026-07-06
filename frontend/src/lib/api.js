@@ -39,6 +39,46 @@ async function postJson(url, body) {
   return data;
 }
 
+async function getJson(url) {
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "GET",
+      credentials: "same-origin",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (err) {
+    if (err && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      throw new Error("Request timed out. The server may be busy — try again.");
+    }
+    throw err;
+  }
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Non-JSON response (rare); fall through to error handling
+  }
+  if (!res.ok) {
+    const msg = (data && data.error) || `Request failed: ${res.status}`;
+    throw new Error(msg);
+  }
+  if (data && data.error) {
+    throw new Error(data.error);
+  }
+  return data;
+}
+
+// Whether the password gate is active and whether this session has cleared it.
+export function authStatus() {
+  return getJson("/api/auth/status");
+}
+
+// Submit the shared password. Resolves on success, throws on a wrong password.
+export function login(password) {
+  return postJson("/api/login", { password });
+}
+
 export function chat({ message, imageBase64, confirm, editedSummary } = {}) {
   const body = {};
   if (message !== undefined) body.message = message;

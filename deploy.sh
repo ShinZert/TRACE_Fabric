@@ -12,7 +12,7 @@ set -e
 #                                       ./deploy.sh deploy sha-a1b2c3d
 #   ./deploy.sh logs             Tail live logs
 #   ./deploy.sh status           Show container status
-#   ./deploy.sh restart          Restart app (e.g. after .env change)
+#   ./deploy.sh restart          Recreate app to reload .env (e.g. after .env change)
 #   ./deploy.sh stop             Stop all containers
 #   ./deploy.sh set-token        Store GitHub token on server for git pull + GHCR auth
 #   ./deploy.sh ssh              Open an interactive SSH session
@@ -166,8 +166,11 @@ cmd_status() {
 
 cmd_restart() {
     check_config
-    echo -e "${YELLOW}=== Restarting app ===${NC}"
-    remote "cd $APP_DIR && docker compose restart app"
+    echo -e "${YELLOW}=== Restarting app (recreating to reload .env) ===${NC}"
+    # Recreate (not just `restart`) so new env_file values are picked up.
+    # `docker compose restart` reuses the container's baked-in environment and
+    # would NOT see .env changes; --force-recreate rebuilds it from .env.
+    remote "cd $APP_DIR && docker compose up -d --force-recreate app"
     echo -e "${GREEN}Done.${NC}"
 }
 
@@ -218,7 +221,7 @@ cmd_help() {
     echo "                         ./deploy.sh deploy sha-a1b2c3d"
     echo "  logs            Tail live logs from all containers"
     echo "  status          Show container status and resource usage"
-    echo "  restart         Restart the app container (e.g. after .env change)"
+    echo "  restart         Recreate the app container to reload .env (e.g. after .env change)"
     echo "  stop            Stop all containers"
     echo "  set-token       Store your GitHub token on the server (run once)"
     echo "  ssh             Open an interactive SSH session to the droplet"

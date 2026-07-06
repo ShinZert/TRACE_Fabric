@@ -6,6 +6,7 @@ renders the trace directly.
 """
 
 import base64
+import hmac
 import json as _json
 import os
 
@@ -14,7 +15,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from config import SECRET_KEY, MAX_CONTENT_LENGTH, OPENAI_MODEL
+from config import SECRET_KEY, MAX_CONTENT_LENGTH, OPENAI_MODEL, APP_PASSWORD
 from services.llm_service import generate_trace, generate_summary
 from services.schema_validator import validate_schema, validate_semantics
 from services.image_validator import validate_image_base64, validate_image_bytes
@@ -54,6 +55,60 @@ def ratelimit_handler(e):
 def health():
     """Liveness probe — fast, no external dependencies."""
     return jsonify({"status": "ok", "model": OPENAI_MODEL})
+
+
+# --- Password gate ---------------------------------------------------------
+# Endpoints reachable without the shared password. Everything else under /api/
+# is blocked until the session is authed. The index shell and static bundle are
+# left open on purpose — they're inert without the API, and the React gate needs
+# to load in order to render the login screen.
+_GATE_EXEMPT_PATHS = {"/api/health", "/api/login", "/api/auth/status"}
+
+
+@app.before_request
+def _require_password():
+    """Block /api/* until the session has cleared the shared password gate."""
+    if not APP_PASSWORD:
+        return  # gate disabled — open access
+    path = request.path
+    if not path.startswith("/api/") or path in _GATE_EXEMPT_PATHS:
+        return
+    if session.get("authed"):
+        return
+    return jsonify({"error": "Password required", "auth_required": True}), 401
+
+
+@app.route("/api/auth/status")
+@limiter.exempt
+def auth_status():
+    """Report whether the gate is active and whether this session has cleared it."""
+    return jsonify({
+        "gate": bool(APP_PASSWORD),
+        "authed": (not APP_PASSWORD) or bool(session.get("authed")),
+    })
+
+
+@app.route("/api/login", methods=["POST"])
+@limiter.limit("10 per minute; 100 per day")
+def login():
+    """Check the shared password and mark the session authenticated."""
+    if not APP_PASSWORD:
+        session["authed"] = True
+        return jsonify({"status": "ok", "gate": False})
+
+    data = request.get_json(silent=True) or {}
+    supplied = data.get("password", "")
+    if not isinstance(supplied, str):
+        supplied = ""
+
+    # Constant-time compare so response timing can't leak the password.
+    if hmac.compare_digest(supplied, APP_PASSWORD):
+        session["authed"] = True
+        log_event("login", status="ok")
+        return jsonify({"status": "ok"})
+
+    log_event("login", status="failed")
+    return jsonify({"error": "Incorrect password"}), 401
 
 
 @app.route("/")
